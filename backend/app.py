@@ -294,7 +294,7 @@ def send_emails():
                     <tbody>{filas_html}</tbody>
                 </table>
                 <br>
-                <p>Atentamente,<br><b>Gestión de ATM</b></p>
+                <p>Atentamente</p>
             </div>
             """
 
