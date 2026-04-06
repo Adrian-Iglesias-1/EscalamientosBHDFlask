@@ -11,7 +11,8 @@ class ClosedAndBlockHandler:
 
     def _ensure_file(self):
         if not os.path.exists(self.excel_path):
-            wb = load_workbook()
+            from openpyxl import Workbook
+            wb = Workbook()
             ws = wb.active
             ws.title = 'ClosedAndBlock'
             ws.append(['ID', 'NOMBRE', 'CUSTODIO', 'FECHA_INGRESO', 'ESTADO', 'ASUNTO', 'REPORTADO_POR'])
