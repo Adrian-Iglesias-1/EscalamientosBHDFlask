@@ -77,40 +77,25 @@ exit /b 1
 :python_ok
 echo.
 
-:: Entrar a backend y crear venv
+:: Entrar a backend y crear venv limpio
 cd backend
 echo [2/4] Verificando entorno virtual...
 
-:: Verificar si el venv existente funciona
-set "VENV_TEST=0"
-if exist "venv\Scripts\python.exe" (
-    %PYTHON_CMD% -c "import sys; sys.exit(0)" >nul 2>&1
-    if errorlevel 1 (
-        echo     Eliminando venv incompatible...
-        rd /s /q "venv" >nul 2>&1
-    ) else (
-        :: Probar si pip funciona
-        call venv\Scripts\pip --version >nul 2>&1
-        if errorlevel 1 (
-            echo     Eliminando venv con pip roto...
-            rd /s /q "venv" >nul 2>&1
-        )
-    )
+:: SIEMPRE eliminar venv existente para evitar problemas de rutas
+if exist "venv" (
+    echo     Eliminando entorno virtual anterior...
+    rd /s /q "venv" >nul 2>&1
 )
 
-if not exist "venv\Scripts\python.exe" (
-    echo     Creando entorno virtual...
-    %PYTHON_CMD% -m venv venv
-    if errorlevel 1 (
-        echo.
-        echo ERROR: No se pudo crear el entorno virtual.
-        pause
-        exit /b 1
-    )
-    echo     Entorno virtual creado.
-) else (
-    echo     Entorno virtual verificado.
+echo     Creando entorno virtual...
+%PYTHON_CMD% -m venv venv
+if errorlevel 1 (
+    echo.
+    echo ERROR: No se pudo crear el entorno virtual.
+    pause
+    exit /b 1
 )
+echo     Entorno virtual creado.
 echo.
 
 :: Instalar dependencias
