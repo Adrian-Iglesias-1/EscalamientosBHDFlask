@@ -128,12 +128,13 @@ if not errorlevel 1 (
     exit /b 0
 )
 
-:: Iniciar servidor (completamente oculto con pythonw)
-start "EscalamientosApp Server" venv\Scripts\pythonw.exe app.py
+:: Probar si el servidor inicia correctamente
+echo     Probando servidor...
+call venv\Scripts\python.exe app.py >nul 2>&1 &
+timeout /t 3 /nobreak >nul
+taskkill /F /IM python.exe >nul 2>&1
 
-echo     Esperando...
-timeout /t 4 /nobreak >nul
-
+:: Si funciono, iniciar en segundo plano
 netstat -an 2>nul | findstr ":5000" | findstr "LISTENING" >nul 2>&1
 if not errorlevel 1 (
     echo     Servidor iniciado!
@@ -142,9 +143,19 @@ if not errorlevel 1 (
     echo El servidor esta corriendo. Podes cerrar esta ventana.
     timeout /t 3 /nobreak >nul
     exit /b 0
-) else (
-    echo     Iniciando navegador...
-    start http://localhost:5000
-    timeout /t 2 /nobreak >nul
-    exit /b 0
 )
+
+:: Si no funciono, mostrar errores
+echo.
+echo ERROR: El servidor no pudo iniciar.
+echo Revisando dependencias...
+echo.
+
+:: Verificar dependencias instaladas
+call venv\Scripts\pip list
+
+echo.
+echo Asegurate de que todas las dependencias esten instaladas.
+echo Si el error persiste, manda el log al administrador.
+pause
+exit /b 1
