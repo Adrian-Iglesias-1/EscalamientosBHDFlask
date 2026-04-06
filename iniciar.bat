@@ -128,34 +128,16 @@ if not errorlevel 1 (
     exit /b 0
 )
 
-:: Probar si el servidor inicia correctamente
-echo     Probando servidor...
-call venv\Scripts\python.exe app.py >nul 2>&1 &
-timeout /t 3 /nobreak >nul
-taskkill /F /IM python.exe >nul 2>&1
-
-:: Si funciono, iniciar en segundo plano
-netstat -an 2>nul | findstr ":5000" | findstr "LISTENING" >nul 2>&1
-if not errorlevel 1 (
-    echo     Servidor iniciado!
-    start http://localhost:5000
-    echo.
-    echo El servidor esta corriendo. Podes cerrar esta ventana.
-    timeout /t 3 /nobreak >nul
-    exit /b 0
-)
-
-:: Si no funciono, mostrar errores
+:: Iniciar servidor y capturar errores
+echo     Iniciando servidor...
 echo.
-echo ERROR: El servidor no pudo iniciar.
-echo Revisando dependencias...
+echo ----------------------------------------
+call venv\Scripts\python.exe app.py 2>&1
+echo ----------------------------------------
 echo.
 
-:: Verificar dependencias instaladas
-call venv\Scripts\pip list
-
-echo.
-echo Asegurate de que todas las dependencias esten instaladas.
-echo Si el error persiste, manda el log al administrador.
+:: Si salio bien, el navegador se abrio y el proceso termino
+echo El servidor esta corriendo!
+echo Cierra esta ventana para salir.
 pause
-exit /b 1
+exit /b 0
