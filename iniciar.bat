@@ -81,6 +81,23 @@ echo.
 cd backend
 echo [2/4] Verificando entorno virtual...
 
+:: Verificar si el venv existente funciona
+set "VENV_TEST=0"
+if exist "venv\Scripts\python.exe" (
+    %PYTHON_CMD% -c "import sys; sys.exit(0)" >nul 2>&1
+    if errorlevel 1 (
+        echo     Eliminando venv incompatible...
+        rd /s /q "venv" >nul 2>&1
+    ) else (
+        :: Probar si pip funciona
+        call venv\Scripts\pip --version >nul 2>&1
+        if errorlevel 1 (
+            echo     Eliminando venv con pip roto...
+            rd /s /q "venv" >nul 2>&1
+        )
+    )
+)
+
 if not exist "venv\Scripts\python.exe" (
     echo     Creando entorno virtual...
     %PYTHON_CMD% -m venv venv
@@ -92,7 +109,7 @@ if not exist "venv\Scripts\python.exe" (
     )
     echo     Entorno virtual creado.
 ) else (
-    echo     Entorno virtual ya existe.
+    echo     Entorno virtual verificado.
 )
 echo.
 
