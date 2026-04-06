@@ -128,16 +128,29 @@ if not errorlevel 1 (
     exit /b 0
 )
 
-:: Iniciar servidor y capturar errores
-echo     Iniciando servidor...
-echo.
-echo ----------------------------------------
-call venv\Scripts\python.exe app.py 2>&1
-echo ----------------------------------------
-echo.
+:: Probar si el servidor inicia
+echo     Probando servidor...
+call venv\Scripts\python.exe -c "from app import app; print('OK')" >nul 2>&1
+if errorlevel 1 (
+    echo     ERROR: No se pudo iniciar el servidor.
+    echo.
+    echo Revisando dependencias...
+    call venv\Scripts\pip list
+    pause
+    exit /b 1
+)
 
-:: Si salio bien, el navegador se abrio y el proceso termino
-echo El servidor esta corriendo!
-echo Cierra esta ventana para salir.
+:: Iniciar en segundo plano
+echo     Iniciando en segundo plano...
+start "EscalamientosApp Server" venv\Scripts\pythonw.exe app.py
+timeout /t 2 /nobreak >nul
+start http://localhost:5000
+echo.
+echo ----------------------------------------
+echo     Servidor iniciado correctamente!
+echo ----------------------------------------
+echo.
+echo La aplicacion se abrio en el navegador.
+echo Cierra esta ventana para detener el servidor.
 pause
 exit /b 0
