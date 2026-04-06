@@ -123,9 +123,9 @@ if not errorlevel 1 (
     echo     Servidor YA estaba corriendo.
     start http://localhost:5000
     echo.
-    echo Presiona cualquier tecla para cerrar.
-    pause >nul
-    exit /b 0
+    echo Esta ventana se cerrara en 3 segundos...
+    timeout /t 3 /nobreak >nul
+    exit
 )
 
 :: Probar si el servidor inicia
@@ -151,6 +151,6 @@ echo     Servidor iniciado correctamente!
 echo ----------------------------------------
 echo.
 echo La aplicacion se abrio en el navegador.
-echo Cierra esta ventana para detener el servidor.
-pause
-exit /b 0
+echo Esta ventana se cerrara en 3 segundos...
+timeout /t 3 /nobreak >nul
+exit
