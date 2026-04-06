@@ -77,34 +77,40 @@ exit /b 1
 :python_ok
 echo.
 
-:: Entrar a backend y crear venv limpio
+:: Entrar a backend y crear venv
 cd backend
 echo [2/4] Verificando entorno virtual...
 
-:: SIEMPRE eliminar venv existente para evitar problemas de rutas
-if exist "venv" (
-    echo     Eliminando entorno virtual anterior...
-    rd /s /q "venv" >nul 2>&1
+:: Verificar si el venv existente funciona
+if exist "venv\Scripts\python.exe" (
+    :: Probar si funciona
+    call venv\Scripts\python.exe -c "import flask" >nul 2>&1
+    if not errorlevel 1 (
+        echo     Entorno virtual existente verificado.
+    ) else (
+        echo     Entorno virtual corrupto, eliminando...
+        rd /s /q "venv" >nul 2>&1
+        goto crear_venv
+    )
+) else (
+    :crear_venv
+    echo     Creando entorno virtual...
+    %PYTHON_CMD% -m venv venv
+    if errorlevel 1 (
+        echo.
+        echo ERROR: No se pudo crear el entorno virtual.
+        pause
+        exit /b 1
+    )
+    echo     Entorno virtual creado.
 )
-
-echo     Creando entorno virtual...
-%PYTHON_CMD% -m venv venv
-if errorlevel 1 (
-    echo.
-    echo ERROR: No se pudo crear el entorno virtual.
-    pause
-    exit /b 1
-)
-echo     Entorno virtual creado.
 echo.
 
-:: Instalar dependencias
-echo [3/4] Instalando dependencias...
-echo     (La primera vez puede tardar unos minutos)
-
-call venv\Scripts\pip install --upgrade pip --quiet 2>nul
+:: Instalar dependencias solo si es necesario
+echo [3/4] Verificando dependencias...
 call venv\Scripts\pip install -r requirements.txt --quiet 2>nul
 if errorlevel 1 (
+    echo     Instalando dependencias...
     call venv\Scripts\pip install -r requirements.txt
     if errorlevel 1 (
         echo.
