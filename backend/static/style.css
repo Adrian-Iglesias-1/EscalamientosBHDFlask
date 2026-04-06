@@ -29,12 +29,12 @@ body { font-family: 'Inter', sans-serif; background: #F1F5F9; overflow: hidden; 
 .xol-subtab-content.active { display: block; }
 
 /* Primary color override (Bootstrap) */
-.btn-primary { background-color: var(--bhd-green) !important; border-color: var(--bhd-green) !important; }
-.btn-primary:hover { background-color: var(--bhd-green-dark) !important; border-color: var(--bhd-green-dark) !important; }
-.btn-outline-primary { color: var(--bhd-green) !important; border-color: var(--bhd-green) !important; }
-.btn-outline-primary:hover { background-color: var(--bhd-green) !important; border-color: var(--bhd-green) !important; color: white !important; }
-.btn-outline-success { color: var(--bhd-green) !important; border-color: var(--bhd-green) !important; }
-.btn-outline-success:hover { background-color: var(--bhd-green) !important; border-color: var(--bhd-green) !important; }
+.btn-primary { background-color: var(--brand-green) !important; border-color: var(--brand-green) !important; }
+.btn-primary:hover { background-color: var(--brand-green-dark) !important; border-color: var(--brand-green-dark) !important; }
+.btn-outline-primary { color: var(--brand-green) !important; border-color: var(--brand-green) !important; }
+.btn-outline-primary:hover { background-color: var(--brand-green) !important; border-color: var(--brand-green) !important; color: white !important; }
+.btn-outline-success { color: var(--brand-green) !important; border-color: var(--brand-green) !important; }
+.btn-outline-success:hover { background-color: var(--brand-green) !important; border-color: var(--brand-green) !important; }
 
 .btn-outline-primary.btn-xolusat { color: #0D6EFD !important; border-color: #0D6EFD !important; }
 .btn-outline-primary.btn-xolusat:hover { background-color: #0D6EFD !important; border-color: #0D6EFD !important; color: white !important; }
@@ -44,10 +44,10 @@ body { font-family: 'Inter', sans-serif; background: #F1F5F9; overflow: hidden; 
 
 .nav-pills .nav-link { color: #64748B !important; background: transparent !important; }
 .nav-pills .nav-link:hover { color: #1E293B !important; background: #E2E8F0 !important; }
-.nav-pills .nav-link.active { background-color: var(--bhd-green) !important; color: white !important; }
+.nav-pills .nav-link.active { background-color: var(--brand-green) !important; color: white !important; }
 
 /* Tab colors */
-#mainTabs .nav-link.active { background-color: var(--bhd-green) !important; }
+#mainTabs .nav-link.active { background-color: var(--brand-green) !important; }
 #mainTabs .nav-link[onclick*="scripts"].active { background-color: #DC3545 !important; }
 #mainTabs .nav-link[onclick*="scripts"]:hover { background-color: #DC3545 !important; color: white !important; }
 #mainTabs .nav-link[onclick*="xolusat"].active { background-color: #0D6EFD !important; }
@@ -57,7 +57,7 @@ body { font-family: 'Inter', sans-serif; background: #F1F5F9; overflow: hidden; 
 
 /* Tab section button overrides - highest priority */
 section#tab-fallas .btn-primary, 
-section#tab-fallas .btn-primary:hover { background-color: var(--bhd-green) !important; border-color: var(--bhd-green) !important; color: white !important; }
+section#tab-fallas .btn-primary:hover { background-color: var(--brand-green) !important; border-color: var(--brand-green) !important; color: white !important; }
 
 section#tab-scripts .btn-primary,
 section#tab-scripts .btn-primary:hover { background-color: #DC3545 !important; border-color: #DC3545 !important; color: white !important; }
@@ -69,7 +69,7 @@ section#tab-closedblock .btn-primary,
 section#tab-closedblock .btn-primary:hover { background-color: #FD7E14 !important; border-color: #FD7E14 !important; color: white !important; }
 
 /* Also override btn-fallas etc classes */
-.btn-fallas { background-color: var(--bhd-green) !important; border-color: var(--bhd-green) !important; color: white !important; }
+.btn-fallas { background-color: var(--brand-green) !important; border-color: var(--brand-green) !important; color: white !important; }
 .btn-scripts { background-color: #DC3545 !important; border-color: #DC3545 !important; color: white !important; font-weight: 500 !important; }
 .btn-xolusat { background-color: #0D6EFD !important; border-color: #0D6EFD !important; color: white !important; }
 .btn-closedblock { background-color: #FD7E14 !important; border-color: #FD7E14 !important; color: white !important; font-weight: 600 !important; }
@@ -99,15 +99,15 @@ section#tab-closedblock .btn-primary:hover { background-color: #FD7E14 !importan
     font-weight: 600 !important;
 }
 
-.form-check-input:checked { background-color: var(--bhd-green); border-color: var(--bhd-green); }
-.form-switch .form-check-input:focus { border-color: var(--bhd-green); box-shadow: 0 0 0 0.2rem rgba(84, 185, 72, 0.25); }
+.form-check-input:checked { background-color: var(--brand-green); border-color: var(--brand-green); }
+.form-switch .form-check-input:focus { border-color: var(--brand-green); box-shadow: 0 0 0 0.2rem rgba(84, 185, 72, 0.25); }
 
 .nav-tabs .nav-link { color: #64748B !important; }
 .nav-tabs .nav-link:hover { color: #1E293B !important; }
-.nav-tabs .nav-link.active { border-color: var(--bhd-green) var(--bhd-green) transparent; color: var(--bhd-green) !important; font-weight: 600; background: transparent !important; }
+.nav-tabs .nav-link.active { border-color: var(--brand-green) var(--brand-green) transparent; color: var(--brand-green) !important; font-weight: 600; background: transparent !important; }
 
 /* Toast */
-.bg-success-custom { background-color: var(--bhd-green) !important; color: white; }
+.bg-success-custom { background-color: var(--brand-green) !important; color: white; }
 .bg-danger-custom { background-color: #DC3545 !important; color: white; }
 
 /* Script items */
