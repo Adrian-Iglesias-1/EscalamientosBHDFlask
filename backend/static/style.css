@@ -1,0 +1,145 @@
+/* ============================================
+   Brand overrides
+   Bootstrap 5 handles the rest
+   ============================================ */
+
+:root {
+    --brand-green: #54b948;
+    --brand-green-dark: #3d9632;
+    --brand-dark: #1E293B;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Inter', sans-serif; background: #F1F5F9; overflow: hidden; }
+
+/* Navbar */
+.bg-navbar { background: linear-gradient(135deg, var(--brand-dark) 0%, #334155 100%); }
+
+/* Sidebar */
+.sidebar { width: 270px; min-width: 270px; }
+.sidebar > * { margin-top: 0 !important; margin-bottom: 0 !important; }
+.sidebar .card { margin-bottom: 8px !important; }
+
+/* Tab content */
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* XOLUSAT sub-tabs */
+.xol-subtab-content { display: none; }
+.xol-subtab-content.active { display: block; }
+
+/* Primary color override (Bootstrap) */
+.btn-primary { background-color: var(--brand-green) !important; border-color: var(--brand-green) !important; }
+.btn-primary:hover { background-color: var(--brand-green-dark) !important; border-color: var(--brand-green-dark) !important; }
+.btn-outline-primary { color: var(--brand-green) !important; border-color: var(--brand-green) !important; }
+.btn-outline-primary:hover { background-color: var(--brand-green) !important; border-color: var(--brand-green) !important; color: white !important; }
+.btn-outline-success { color: var(--brand-green) !important; border-color: var(--brand-green) !important; }
+.btn-outline-success:hover { background-color: var(--brand-green) !important; border-color: var(--brand-green) !important; }
+
+.btn-outline-primary.btn-xolusat { color: #0D6EFD !important; border-color: #0D6EFD !important; }
+.btn-outline-primary.btn-xolusat:hover { background-color: #0D6EFD !important; border-color: #0D6EFD !important; color: white !important; }
+
+.btn-warning.btn-closedblock { background-color: #FD7E14 !important; border-color: #FD7E14 !important; color: white !important; font-weight: 600 !important; }
+.btn-warning.btn-closedblock:hover { background-color: #E96B02 !important; border-color: #E96B02 !important; }
+
+.nav-pills .nav-link { color: #64748B !important; background: transparent !important; }
+.nav-pills .nav-link:hover { color: #1E293B !important; background: #E2E8F0 !important; }
+.nav-pills .nav-link.active { background-color: var(--brand-green) !important; color: white !important; }
+
+/* Tab colors */
+#mainTabs .nav-link.active { background-color: var(--brand-green) !important; }
+#mainTabs .nav-link[onclick*="scripts"].active { background-color: #DC3545 !important; }
+#mainTabs .nav-link[onclick*="scripts"]:hover { background-color: #DC3545 !important; color: white !important; }
+#mainTabs .nav-link[onclick*="xolusat"].active { background-color: #0D6EFD !important; }
+#mainTabs .nav-link[onclick*="xolusat"]:hover { background-color: #0D6EFD !important; color: white !important; }
+#mainTabs .nav-link[onclick*="closedblock"].active { background-color: #FD7E14 !important; }
+#mainTabs .nav-link[onclick*="closedblock"]:hover { background-color: #FD7E14 !important; color: white !important; }
+
+/* Tab section button overrides - highest priority */
+section#tab-fallas .btn-primary, 
+section#tab-fallas .btn-primary:hover { background-color: var(--brand-green) !important; border-color: var(--brand-green) !important; color: white !important; }
+
+section#tab-scripts .btn-primary,
+section#tab-scripts .btn-primary:hover { background-color: #DC3545 !important; border-color: #DC3545 !important; color: white !important; }
+
+section#tab-xolusat .btn-primary,
+section#tab-xolusat .btn-primary:hover { background-color: #0D6EFD !important; border-color: #0D6EFD !important; color: white !important; }
+
+section#tab-closedblock .btn-primary,
+section#tab-closedblock .btn-primary:hover { background-color: #FD7E14 !important; border-color: #FD7E14 !important; color: white !important; }
+
+/* Also override btn-fallas etc classes */
+.btn-fallas { background-color: var(--brand-green) !important; border-color: var(--brand-green) !important; color: white !important; }
+.btn-scripts { background-color: #DC3545 !important; border-color: #DC3545 !important; color: white !important; font-weight: 500 !important; }
+.btn-xolusat { background-color: #0D6EFD !important; border-color: #0D6EFD !important; color: white !important; }
+.btn-closedblock { background-color: #FD7E14 !important; border-color: #FD7E14 !important; color: white !important; font-weight: 600 !important; }
+
+/* Outline buttons by color */
+.btn-outline-success.btn-scripts { 
+    color: #DC3545 !important; 
+    border-color: #DC3545 !important; 
+    font-weight: 600 !important;
+}
+.btn-outline-success.btn-scripts:hover { 
+    background-color: #DC3545 !important; 
+    border-color: #DC3545 !important; 
+    color: white !important;
+    font-weight: 600 !important;
+}
+
+.btn-outline-danger.btn-scripts { 
+    color: #DC3545 !important; 
+    border-color: #DC3545 !important;
+    font-weight: 600 !important;
+}
+.btn-outline-danger.btn-scripts:hover { 
+    background-color: #DC3545 !important; 
+    border-color: #DC3545 !important; 
+    color: white !important;
+    font-weight: 600 !important;
+}
+
+.form-check-input:checked { background-color: var(--brand-green); border-color: var(--brand-green); }
+.form-switch .form-check-input:focus { border-color: var(--brand-green); box-shadow: 0 0 0 0.2rem rgba(84, 185, 72, 0.25); }
+
+.nav-tabs .nav-link { color: #64748B !important; }
+.nav-tabs .nav-link:hover { color: #1E293B !important; }
+.nav-tabs .nav-link.active { border-color: var(--brand-green) var(--brand-green) transparent; color: var(--brand-green) !important; font-weight: 600; background: transparent !important; }
+
+/* Toast */
+.bg-success-custom { background-color: var(--brand-green) !important; color: white; }
+.bg-danger-custom { background-color: #DC3545 !important; color: white; }
+
+/* Script items */
+.script-item { background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 16px; transition: 0.2s; }
+.script-item:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+.script-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+
+/* Cards hover */
+.card { transition: 0.2s; }
+.card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08) !important; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #F1F5F9; }
+::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
+
+/* Responsive */
+@media (max-width: 991px) {
+    .sidebar { display: none !important; }
+}
+
+/* Hide Salir button if it exists (for safety) */
+button[onclick="shutdownAndClose()"] { display: none !important; }
+
+/* Closed & Block layout fix */
+#tab-closedblock .row .col-md-6 {
+    display: flex;
+    flex-direction: column;
+}
+
+#tab-closedblock #cb-text {
+    flex-grow: 1;
+    min-height: 150px;
+}

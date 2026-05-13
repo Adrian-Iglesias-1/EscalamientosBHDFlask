@@ -1,0 +1,70 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Excel temporary files
+~$*.xlsx
+~$*.xls
+*.xlsm~
+*.xlsx~
+
+# Logs and databases
+*.log
+*.sqlite
+*.db
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Server PID files
+server.pid
+
+# Debug output
+debug_output.html
+
+# Local environment variables
+.env
+.env.local
+
+# Flask
+instance/
+.webassets-cache
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST

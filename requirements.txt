@@ -1,0 +1,18 @@
+# EscalamientosApp - Requirements
+# Python 3.8+ required
+
+# Web Framework
+flask>=2.3.0
+flask-cors>=4.0.0
+
+# Data Processing
+pandas>=2.0.0
+openpyxl>=3.1.0
+python-dateutil>=2.8.0
+
+# Windows Integration (Outlook)
+pywin32>=227; platform_system == "Windows"
+
+# Environment
+gunicorn>=21.0.0; platform_system != "Windows"
+python-dotenv>=1.0.0
