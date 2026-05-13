@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Escalamientos ATM</title>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css?v=dev">
+</head>
+<body>
+
+<!-- Navbar -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-navbar fixed-top shadow-sm">
+    <div class="container-fluid px-4">
+        <a class="navbar-brand d-flex align-items-center gap-2" href="#">
+            <i class="bi bi-graph-up-arrow fs-4"></i>
+            <span class="fw-bold">Escalamientos ATM</span>
+        </a>
+        <div class="d-flex align-items-center gap-3 ms-auto">
+            <span id="connection-status" class="d-inline-flex align-items-center gap-1 text-white" style="background-color: #198754; padding: 4px 12px; border-radius: 4px; font-size: 0.875rem; font-weight: 600; line-height: 1.5;">
+                <i class="bi bi-check-circle-fill"></i>
+                Planilla Conectada
+            </span>
+            <span id="atm-count" class="text-white-50 small fw-semibold">859 ATMs</span>
+        </div>
+    </div>
+</nav>
+
+<!-- Layout -->
+<div class="d-flex min-h-0" style="padding-top: 56px; height: 100vh;">
+
+    <!-- Sidebar -->
+    <aside class="sidebar bg-white border-end p-3" style="width:270px">
+        <div class="card border-0 bg-light">
+            <div class="card-body py-3">
+                <label class="form-label fw-semibold text-uppercase small text-muted mb-2">
+                    <i class="bi bi-arrow-up-circle me-1"></i> Actualizar RCU
+                </label>
+                <button class="btn btn-outline-primary btn-sm w-100" onclick="document.getElementById('rcu-upload').click()" id="rcu-btn">
+                    <i class="bi bi-upload me-1"></i> Seleccionar archivo
+                </button>
+                <input type="file" id="rcu-upload" class="d-none" accept=".xlsx,.xlsm,.xls">
+                <div id="rcu-status" class="mt-2" style="display:none;"></div>
+            </div>
+        </div>
+
+        <div class="card border-0 bg-light mt-2">
+            <div class="card-body py-3">
+                <label class="form-label fw-semibold text-uppercase small text-muted mb-2">
+                    <i class="bi bi-gear me-1"></i> Configuración
+                </label>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="mode-feriado" onchange="toggleFeriadoIndicator()">
+                    <label class="form-check-label small" for="mode-feriado">Modo Feriado</label>
+                </div>
+                <div id="feriado-indicator" class="alert alert-warning py-2 mt-2 mb-0 d-none">
+                    <i class="bi bi-calendar-event me-1"></i>
+                    <small>Modo feriado activo</small>
+                </div>
+                <div id="domingo-indicator" class="alert alert-info py-2 mt-2 mb-0 d-none">
+                    <i class="bi bi-sun me-1"></i>
+                    <small>Es domingo - Modo fin de semana activo</small>
+                </div>
+            </div>
+        </div>
+
+        <button onclick="shutdownServer()" class="btn btn-outline-danger btn-sm w-100 mt-3" title="Cerrar servidor">
+            <i class="bi bi-power me-1"></i> Cerrar servidor
+        </button>
+
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-grow-1 overflow-y-auto p-3 min-h-0 main--send-panel-space" style="max-width: 100%; overflow-x: hidden;">
+
+        <!-- Tabs Navigation -->
+        <ul class="nav nav-pills mb-4 gap-2" id="mainTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active px-4 py-2 rounded-pill" onclick="showTab('fallas')" type="button">
+                    <i class="bi bi-lightning-charge me-1"></i> Gestión de Fallas
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link px-4 py-2 rounded-pill" onclick="showTab('xolusat')" type="button">
+                    <i class="bi bi-bullseye me-1"></i> XOLUSAT
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link px-4 py-2 rounded-pill" onclick="showTab('scripts')" type="button">
+                    <i class="bi bi-file-earmark-code me-1"></i> Generar Scripts
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link px-4 py-2 rounded-pill" onclick="showTab('contactos')" type="button">
+                    <i class="bi bi-person-lines-fill me-1"></i> Contactos
+                </button>
+            </li>
+        </ul>
+
+        <!-- ============================================ -->
+        <!-- TAB 1: GESTIÓN DE FALLAS -->
+        <!-- ============================================ -->
+        <section id="tab-fallas" class="tab-content active">
+            
+            <div class="row g-4 mb-0 align-items-stretch" style="min-height:0;">
+
+                <!-- Recepción de Datos -->
+                <div class="col-md-6">
+                    <div class="card border-0">
+                        <div class="card-body d-flex flex-column p-4">
+                            <div class="data-card-header">
+                                <div class="data-card-icon"><i class="bi bi-clipboard2-plus"></i></div>
+                                <div>
+                                    <h5 class="mb-0 fw-bold" style="font-size:1rem;">Recepción de Datos</h5>
+                                    <p class="text-muted mb-0" style="font-size:0.75rem;">
+                                        Seleccioná las celdas <strong>CON encabezados</strong> desde Excel, copiá (Ctrl+C) y pegá acá (Ctrl+V).
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="position-relative d-flex flex-column flex-grow-1 drop-zone">
+                                <textarea class="form-control mb-3 flex-grow-1" id="pasted-text" rows="3"
+                                    placeholder="ID ATM&#9;Dirección&#9;Tipo..."
+                                    oninput="updateLineCount()"></textarea>
+                                <span id="line-count" class="line-counter">0 líneas</span>
+                                <div id="drop-hint" class="drop-hint"><i class="bi bi-file-earmark-arrow-up me-1"></i>Soltá archivos aquí</div>
+                            </div>
+                            <div class="d-flex gap-2 mt-auto">
+                                <button onclick="processFailures()" class="btn btn-primary flex-fill btn-fallas" id="btn-procesar" disabled>
+                                    <i class="bi bi-play-fill me-1" id="btn-procesar-icon"></i> <span id="btn-procesar-text">Procesar Datos</span>
+                                </button>
+                                <button onclick="clearFailures()" class="btn btn-outline-secondary" title="Limpiar">
+                                    <i class="bi bi-trash3"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Vista Previa -->
+                <div class="col-md-6">
+                    <div class="card border-0">
+                        <div class="card-body d-flex flex-column p-4">
+                            <div class="data-card-header">
+                                <div class="data-card-icon" style="background:rgba(13,110,253,0.1);color:#0D6EFD;">
+                                    <i class="bi bi-table"></i>
+                                </div>
+                                <div>
+                                    <h5 class="mb-0 fw-bold" style="font-size:1rem;">Vista Previa</h5>
+                                    <p class="text-muted mb-0" style="font-size:0.75rem;">ATMs cargados y sus custodios</p>
+                                </div>
+                            </div>
+
+                            <div class="table-responsive flex-grow-1 tab-fallas-preview-table" style="min-height:0; border-radius:10px;">
+                                <table class="table mb-0" id="preview-table">
+                                    <thead>
+                                        <tr><th>ID</th><th>ATM</th><th>Custodio</th></tr>
+                                    </thead>
+                                    <tbody id="preview-tbody">
+                                        <!-- empty state -->
+                                        <tr id="preview-empty-row">
+                                            <td colspan="3" class="p-0 border-0">
+                                                <div class="preview-empty">
+                                                    <div class="empty-icon"><i class="bi bi-inbox"></i></div>
+                                                    <p>Sin datos cargados aún</p>
+                                                    <span class="step-hint">① Pegá desde Excel → ② Procesar Datos</span>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <!-- ATMs No Encontrados -->
+                            <div id="not-found-section" class="mt-3" style="display:none;">
+                                <hr class="my-2">
+                                <h6 class="fw-bold text-danger mb-2" style="font-size:0.8rem;">
+                                    <i class="bi bi-exclamation-triangle me-1"></i> ATMs No Encontrados
+                                </h6>
+                                <div id="not-found-list" class="d-flex flex-column gap-1"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================ -->
+        <!-- TAB 2: GENERAR SCRIPTS -->
+        <!-- ============================================ -->
+        <section id="tab-scripts" class="tab-content">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="card-title mb-0"><i class="bi bi-lightning-charge me-2"></i>Scripts de Escalamiento</h5>
+                        <div class="d-flex gap-2 align-items-center">
+                            <button onclick="toggleCollapse('scripts-fallas-collapse')" class="btn btn-outline-secondary btn-sm" title="Minimizar">
+                                <i class="bi bi-chevron-down" id="scripts-fallas-collapse-icon"></i>
+                            </button>
+                            <button onclick="exportScriptsToExcel()" class="btn btn-success btn-sm">
+                                <i class="bi bi-download me-1"></i> Exportar a Excel
+                            </button>
+                            <button onclick="clearFailures()" class="btn btn-danger btn-sm">
+                                <i class="bi bi-trash3 me-1"></i> Limpiar
+                            </button>
+                        </div>
+                    </div>
+                    <p class="text-muted small mb-3">Comentarios listos para copiar a los tickets:</p>
+                    <div id="scripts-fallas-collapse">
+                        <div id="scripts-container-fallas" class="d-flex flex-column gap-2" style="width: 100%;">
+                            <div class="text-center text-muted py-5">
+                                <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                                Cargá fallas en Gestión de Fallas para generar scripts.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- ============================================ -->
+        <!-- TAB 3: XOLUSAT -->
+        <!-- ============================================ -->
+        <section id="tab-xolusat" class="tab-content">
+
+            <!-- Buscar ATM -->
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-body p-4">
+                    <div class="data-card-header">
+                        <div class="data-card-icon" style="background:rgba(13,110,253,0.1);color:#0D6EFD;">
+                            <i class="bi bi-search"></i>
+                        </div>
+                        <div>
+                            <h5 class="mb-0 fw-bold" style="font-size:1rem;">Buscar ATM</h5>
+                            <p class="text-muted mb-0" style="font-size:0.75rem;">Ingresá el ID del ATM para cargar sus datos</p>
+                        </div>
+                    </div>
+                    <div class="d-flex gap-2 align-items-center flex-wrap">
+                        <div class="input-group-text bg-white border rounded-start"><i class="bi bi-hash"></i></div>
+                        <input type="text" class="form-control border rounded-0" id="xol-search-id" placeholder="Ej: BHD0418" style="width: 140px;">
+                        <button onclick="searchATMXol()" class="btn btn-primary btn-xolusat border rounded">
+                            <i class="bi bi-search me-1"></i> Buscar
+                        </button>
+                        <button onclick="clearXolSearch()" class="btn btn-outline-secondary border rounded">
+                            <i class="bi bi-trash3 me-1"></i> Limpiar
+                        </button>
+                    </div>
+                    <div id="xol-atm-info" class="mt-3"></div>
+                </div>
+            </div>
+
+            <!-- Sub-tabs XOLUSAT -->
+            <ul class="nav nav-tabs mb-4" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" onclick="showXolTab('nuevo', this)" type="button">
+                        <i class="bi bi-plus-circle me-1"></i> Nuevo Escalamiento
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" onclick="showXolTab('lista', this)" type="button">
+                        <i class="bi bi-list-ul me-1"></i> Lista de Seguimiento
+                    </button>
+                </li>
+            </ul>
+
+            <!-- Sub-tab: Nuevo Escalamiento -->
+            <div id="xol-tab-nuevo" class="xol-subtab-content active">
+                <div class="card shadow-sm border-0">
+                    <div class="card-body p-4">
+                        <div class="data-card-header">
+                            <div class="data-card-icon" style="background:rgba(13,110,253,0.1);color:#0D6EFD;">
+                                <i class="bi bi-clipboard-data"></i>
+                            </div>
+                            <div>
+                                <h5 class="mb-0 fw-bold" style="font-size:1rem;">Nuevo Escalamiento</h5>
+                                <p class="text-muted mb-0" style="font-size:0.75rem;">Completá los datos del incidente y del ATM</p>
+                            </div>
+                        </div>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-4">
+                                <label class="form-label small fw-semibold">Incident</label>
+                                <input type="text" class="form-control form-control-sm" id="xol-incident" placeholder="W603283311">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small fw-semibold">Estado</label>
+                                <select class="form-select form-select-sm" id="xol-estado">
+                                    <option>OPEN</option>
+                                    <option>ASSIGNED</option>
+                                    <option>SUPEND</option>
+                                    <option>DISPACHED</option>
+                                    <option>CLOSED</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small fw-semibold">SLA</label>
+                                <input type="text" class="form-control form-control-sm" id="xol-sla" placeholder="Ej: 2h">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-semibold">Subcategoría</label>
+                                <select class="form-select form-select-sm" id="xol-subcat" onchange="toggleSubcatOtra()">
+                                    <option>SIN COMUNICACION</option>
+                                    <option>IMPRESORA DE RECIBOS</option>
+                                    <option>APLICACION FUERA DE SERVICIO</option>
+                                    <option>OTRA</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6" id="xol-subcat-otra-container" style="display:none;">
+                                <label class="form-label small fw-semibold">Especificar subcategoría</label>
+                                <input type="text" class="form-control form-control-sm" id="xol-subcat-otra" placeholder="Ingrese subcategoría">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-semibold">Nombre ATM</label>
+                                <input type="text" class="form-control form-control-sm" id="xol-atm-nombre" placeholder="Ej: ATM-BHD-001">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-semibold">Detalle</label>
+                                <input type="text" class="form-control form-control-sm" id="xol-detalle" placeholder="Descripción breve...">
+                            </div>
+                        </div>
+
+                        <button onclick="registerXol(true)" class="btn btn-primary flex-fill btn-xolusat mt-2">
+                            <i class="bi bi-envelope me-1"></i> Enviar escalamiento
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sub-tab: Lista de Seguimiento -->
+            <div id="xol-tab-lista" class="xol-subtab-content">
+                <div class="card shadow-sm border-0">
+                    <div class="card-body p-4">
+                        <div class="data-card-header">
+                            <div class="data-card-icon" style="background:rgba(13,110,253,0.1);color:#0D6EFD;">
+                                <i class="bi bi-list-check"></i>
+                            </div>
+                            <div>
+                                <h5 class="mb-0 fw-bold" style="font-size:1rem;">Lista de Seguimiento</h5>
+                                <p class="text-muted mb-0" style="font-size:0.75rem;">Registros de escalamientos XOLUSAT</p>
+                            </div>
+                        </div>
+
+                        <!-- Filtros -->
+                        <div class="d-flex gap-2 mb-3 align-items-end flex-wrap">
+                            <div>
+                                <label class="form-label small fw-semibold d-block">Estado</label>
+                                <select class="form-select form-select-sm py-1" id="xol-filter-estado" onchange="loadXolRecords()" style="width: 120px;">
+                                    <option>Todos</option>
+                                    <option>OPEN</option>
+                                    <option>ASSIGNED</option>
+                                    <option>SUPEND</option>
+                                    <option>DISPACHED</option>
+                                    <option>CLOSED</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="form-label small fw-semibold d-block">Subcategoría</label>
+                                <select class="form-select form-select-sm py-1" id="xol-filter-subcat" onchange="loadXolRecords()" style="width: 200px;">
+                                    <option>Todas</option>
+                                    <option>SIN COMUNICACION</option>
+                                    <option>IMPRESORA DE RECIBOS</option>
+                                    <option>APLICACION FUERA DE SERVICIO</option>
+                                    <option>OTRA</option>
+                                </select>
+                            </div>
+                            <button onclick="clearXolRecords()" class="btn btn-outline-danger btn-sm py-1 px-2" style="margin-left: 12px;">
+                                <i class="bi bi-trash3"></i>
+                            </button>
+                        </div>
+
+                        <!-- Tabla -->
+                        <div class="table-responsive xol-table-wrap">
+                            <table class="table mb-0" id="xol-table">
+                                <thead>
+                                    <tr>
+                                        <th>Incident</th>
+                                        <th>Estado</th>
+                                        <th>ID ATM</th>
+                                        <th>Subcategoría</th>
+                                        <th>Detalle</th>
+                                        <th>SLA</th>
+                                        <th>ATM</th>
+                                        <th>Custodio</th>
+                                        <th>Fecha</th>
+                                        <th class="text-center" style="width:60px;">Acc</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="xol-tbody">
+                                </tbody>
+                            </table>
+                        </div>
+                        <div id="xol-empty" class="preview-empty" style="display:none;">
+                            <div class="empty-icon"><i class="bi bi-inbox"></i></div>
+                            <p>Sin registros aún</p>
+                            <span class="step-hint">Registrá escalamientos para verlos aquí</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Actualizar Estado -->
+                <div class="card shadow-sm border-0 mt-3">
+                    <div class="card-body p-4">
+                        <div class="data-card-header">
+                            <div class="data-card-icon" style="background:rgba(13,110,253,0.1);color:#0D6EFD;">
+                                <i class="bi bi-pencil"></i>
+                            </div>
+                            <div>
+                                <h5 class="mb-0 fw-bold" style="font-size:1rem;">Actualizar Estado</h5>
+                                <p class="text-muted mb-0" style="font-size:0.75rem;">Modificá el estado de un incidente existente</p>
+                            </div>
+                        </div>
+                        <div class="d-flex gap-2 align-items-end flex-wrap">
+                            <div>
+                                <label class="form-label small fw-semibold d-block">Incidente</label>
+                                <select class="form-select form-select-sm py-1" id="xol-update-incident" style="width: 230px;"></select>
+                            </div>
+                            <div>
+                                <label class="form-label small fw-semibold d-block">Nuevo Estado</label>
+                                <select class="form-select form-select-sm py-1" id="xol-update-estado" style="width: 130px;">
+                                    <option>OPEN</option>
+                                    <option>ASSIGNED</option>
+                                    <option>SUPEND</option>
+                                    <option>DISPACHED</option>
+                                    <option>CLOSED</option>
+                                </select>
+                            </div>
+                            <button onclick="updateXolStatus()" class="btn btn-primary btn-xolusat btn-sm py-1 px-2">
+                                <i class="bi bi-arrow-repeat"></i>
+                            </button>
+                            <button onclick="clearXolRecords()" class="btn btn-outline-danger btn-sm py-1 px-2">
+                                <i class="bi bi-trash3"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================ -->
+        <!-- TAB 5: CONTACTOS -->
+        <!-- ============================================ -->
+        <section id="tab-contactos" class="tab-content">
+            
+            <!-- ── TERCEROS · L-V ── -->
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="data-card-header" style="border-bottom-color: var(--brand-green);">
+                    <div class="data-card-icon" style="background: rgba(84,185,72,0.1); color: var(--brand-green);">
+                        <i class="bi bi-brightness-high"></i>
+                    </div>
+                    <div class="flex-grow-1">
+                        <h5 class="mb-0">TERCEROS <span class="text-muted fs-6 fw-normal">· Lunes a Viernes</span></h5>
+                        <small class="text-muted">Al guardar, se actualizan todos los ATMs del custodio en CONTACTOS SEMANA.</small>
+                    </div>
+                    <button onclick="loadContactos()" class="btn btn-outline-secondary btn-sm" title="Refrescar">
+                        <i class="bi bi-arrow-clockwise"></i>
+                    </button>
+                </div>
+                <div class="card-body pt-0 px-0">
+                    <div class="table-responsive" style="max-height: 350px; overflow-y: auto;">
+                        <table class="table table-hover table-sm mb-0 align-middle" style="table-layout:fixed;">
+                            <thead class="sticky-top" style="background: var(--brand-dark);">
+                                                <tr>
+                                                    <th style="width:160px; background: var(--brand-dark); color: white; font-size:0.75rem; font-weight:600;">Custodio</th>
+                                                    <th style="background: var(--brand-dark); color: white; font-size:0.75rem; font-weight:600;">Email</th>
+                                                    <th style="background: var(--brand-dark); color: white; font-size:0.75rem; font-weight:600;">CC / Copia</th>
+                                                    <th style="width:44px; background: var(--brand-dark);"></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="contactos-terceros-lv-tbody">
+                                                <tr><td colspan="4" class="text-center text-muted py-3">Cargando...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── TERCEROS · FINDE ── -->
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="data-card-header" style="border-bottom-color: var(--brand-orange);">
+                    <div class="data-card-icon" style="background: rgba(253,126,20,0.1); color: var(--brand-orange);">
+                        <i class="bi bi-moon-stars"></i>
+                    </div>
+                    <div class="flex-grow-1">
+                        <h5 class="mb-0">TERCEROS <span class="text-muted fs-6 fw-normal">· Finde / Feriado</span></h5>
+                        <small class="text-muted">Al guardar, se actualiza el contacto en CONTACTOS FINDE.</small>
+                    </div>
+                </div>
+                <div class="card-body pt-0 px-0">
+                    <div class="table-responsive" style="max-height: 350px; overflow-y: auto;">
+                        <table class="table table-hover table-sm mb-0 align-middle" style="table-layout:fixed;">
+                            <thead class="sticky-top" style="background: var(--brand-dark);">
+                                                <tr>
+                                                    <th style="width:160px; background: var(--brand-dark); color: white; font-size:0.75rem; font-weight:600;">Custodio</th>
+                                                    <th style="background: var(--brand-dark); color: white; font-size:0.75rem; font-weight:600;">Email</th>
+                                                    <th style="background: var(--brand-dark); color: white; font-size:0.75rem; font-weight:600;">CC / Copia</th>
+                                                    <th style="width:44px; background: var(--brand-dark);"></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="contactos-terceros-finde-tbody">
+                                                <tr><td colspan="4" class="text-center text-muted py-3">Cargando...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── SUCURSALES ── -->
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="data-card-header" style="border-bottom-color: var(--brand-green);">
+                    <div class="data-card-icon" style="background: rgba(84,185,72,0.1); color: var(--brand-green);">
+                        <i class="bi bi-shop"></i>
+                    </div>
+                    <div class="flex-grow-1">
+                        <h5 class="mb-0">SUCURSALES <span class="text-muted fs-6 fw-normal">· Lunes a Viernes</span></h5>
+                        <small class="text-muted">Cada sucursal tiene su propio correo. Buscá por ID o nombre.</small>
+                    </div>
+                    <span id="contactos-suc-count" class="badge bg-light text-muted border d-none" style="font-size:0.8rem;">
+                        <span id="contactos-suc-num">0</span> resultado(s)
+                    </span>
+                </div>
+                <div class="card-body pt-0">
+                    <div class="d-flex gap-2 align-items-end mb-3">
+                        <div class="search-box" style="width: 240px;">
+                            <i class="bi bi-search search-icon"></i>
+                            <input type="text" id="contactos-suc-search" class="search-input" 
+                                   placeholder="BHD0011..."
+                                   onkeydown="if(event.key==='Enter')filtrarSucursales()">
+                            <button class="search-clear" id="contactos-suc-clear" title="Limpiar" onclick="limpiarBusquedaSucursal()" style="display:none;">
+                                <i class="bi bi-x-lg"></i>
+                            </button>
+                        </div>
+                        <button onclick="filtrarSucursales()" class="btn btn-primary" style="white-space:nowrap;">
+                            <i class="bi bi-search me-1"></i> Buscar
+                        </button>
+                    </div>
+                    <div id="contactos-sucursales-container" class="table-responsive" style="max-height: 350px; overflow-y: auto;">
+                        <table class="table table-hover table-sm mb-0">
+                            <thead class="table-light sticky-top">
+                                <tr><th>ATM ID</th><th>Nombre</th><th style="min-width:220px;">Email</th><th style="min-width:200px;">CC / Copia</th><th style="width:90px;"></th></tr>
+                            </thead>
+                            <tbody id="contactos-sucursales-tbody">
+                                <tr><td colspan="5" class="text-center text-muted py-5">
+                                    <i class="bi bi-search fs-3 d-block mb-2 opacity-25"></i>
+                                    Buscá una sucursal por ID o nombre
+                                </td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── SUCURSAL FINDE ── -->
+            <div class="card shadow-sm border-0">
+                <div class="data-card-header" style="border-bottom-color: var(--brand-orange);">
+                    <div class="data-card-icon" style="background: rgba(253,126,20,0.1); color: var(--brand-orange);">
+                        <i class="bi bi-calendar-week"></i>
+                    </div>
+                    <div class="flex-grow-1">
+                        <h5 class="mb-0">SUCURSAL <span class="text-muted fs-6 fw-normal">· Finde / Feriado</span></h5>
+                        <small class="text-muted">Un solo correo para todas las sucursales durante findes y feriados.</small>
+                    </div>
+                </div>
+                <div class="card-body pt-0">
+                    <div class="row g-3 align-items-end">
+                        <div class="col-md-5">
+                            <label class="form-label small fw-semibold text-muted text-uppercase">Email</label>
+                            <input type="text" id="contactos-suc-finde-email" class="form-control" placeholder="correo@ejemplo.com">
+                        </div>
+                        <div class="col-md-5">
+                            <label class="form-label small fw-semibold text-muted text-uppercase">CC</label>
+                            <input type="text" id="contactos-suc-finde-cc" class="form-control" placeholder="cc1@x.com; cc2@y.com">
+                        </div>
+                        <div class="col-md-2">
+                            <button onclick="guardarSucursalFinde()" class="btn btn-primary w-100">
+                                <i class="bi bi-check-lg me-1"></i> Guardar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+
+
+    </main>
+</div>
+
+<!-- Panel Enviar (fuera de main: no participa en el flex ni en overflow del contenido) -->
+<div id="send-panel-wrapper">
+    <div id="send-panel" class="shadow">
+        <div class="d-flex align-items-center justify-content-between py-2 px-3">
+            <div>
+                <div class="send-title"><i class="bi bi-send-fill me-2"></i>Enviar Escalamientos</div>
+                <div id="email-info">Cargá fallas para comenzar</div>
+                <div id="send-summary" class="send-summary d-none"></div>
+            </div>
+            <div class="d-flex gap-2">
+                <button onclick="loadScripts()" class="btn" id="btn-generate-scripts">
+                    <i class="bi bi-lightning-charge me-1"></i> Generar Scripts
+                </button>
+                <button onclick="sendEmails()" class="btn px-4" id="btn-send-emails">
+                    <i class="bi bi-send me-1"></i> Enviar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast Container -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3">
+    <div id="appToast" class="toast align-items-center border-0 shadow" role="alert">
+        <div class="d-flex">
+            <div class="toast-body d-flex align-items-center gap-2">
+                <i id="toast-icon" class="bi"></i>
+                <span id="toast-message"></span>
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Confirmación -->
+<div class="modal fade" id="confirmModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-0">
+                <h5 class="modal-title" id="confirmTitle">Confirmar</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-muted" id="confirmMessage"></div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-danger" id="confirmBtn">Confirmar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/static/script.js?v=dev"></script>
+
+</body>
+</html>
