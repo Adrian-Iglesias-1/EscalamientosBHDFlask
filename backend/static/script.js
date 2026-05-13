@@ -2,7 +2,6 @@ var failuresData = [];
 var fullData = null;
 var xolRecords = [];
 var currentXolATM = null;
-var scriptsCB = [];
 var scriptsFallas = [];
 
 // ==========================================
@@ -107,11 +106,27 @@ async function loadData() {
 // TABS PRINCIPALES
 // ==========================================
 
+function syncSendPanelVisibility() {
+    var spw = document.getElementById('send-panel-wrapper');
+    var main = document.querySelector('main.flex-grow-1');
+    var fallas = document.getElementById('tab-fallas');
+    var show = fallas && fallas.classList.contains('active');
+    if (spw) spw.style.display = show ? '' : 'none';
+    if (main) main.classList.toggle('main--send-panel-space', show);
+}
+
 function showTab(tabId) {
     document.querySelectorAll('.tab-content').forEach(function(t) { t.classList.remove('active'); });
     document.querySelectorAll('#mainTabs .nav-link').forEach(function(b) { b.classList.remove('active'); });
     document.getElementById('tab-' + tabId).classList.add('active');
-    event.currentTarget.classList.add('active');
+    if (typeof event !== 'undefined' && event.currentTarget) {
+        event.currentTarget.classList.add('active');
+    } else {
+        var link = document.querySelector('#mainTabs .nav-link[onclick*="' + tabId + '"]');
+        if (link) link.classList.add('active');
+    }
+
+    syncSendPanelVisibility();
 
     if (tabId === 'xolusat') {
         loadXolRecords();
@@ -128,6 +143,12 @@ function showXolTab(subtabId, btn) {
     document.getElementById('xol-tab-' + subtabId).classList.add('active');
     btn.classList.add('active');
 
+    // Ocultar card "Buscar ATM" al ir a Lista
+    var searchCard = document.querySelector('#tab-xolusat > .card');
+    if (searchCard) {
+        searchCard.style.display = (subtabId === 'nuevo') ? '' : 'none';
+    }
+
     if (subtabId === 'lista') {
         loadXolRecords();
     }
@@ -140,6 +161,10 @@ function showXolTab(subtabId, btn) {
 async function processFailures() {
     var text = document.getElementById('pasted-text').value;
     if (!text) return showToast('Pegá datos primero', 'danger');
+
+    // Estado loading
+    var lineCount = text.trim().split(/\r?\n/).filter(function(l) { return l.trim(); }).length;
+    setProcesarState('loading', 'Procesando ' + lineCount + ' líneas...');
 
     // Asegurar que fullData esté cargado
     if (!fullData) {
@@ -154,43 +179,69 @@ async function processFailures() {
         });
         var data = await res.json();
         if (data.status === 'success') {
-                failuresData = data.failures;
+            failuresData = data.failures;
             renderPreview();
-            loadScripts();
             showToast(data.failures.length + ' fallas cargadas', 'success');
             var emailInfo = document.getElementById('email-info');
-            if (emailInfo) emailInfo.textContent = data.failures.length + ' fallas listas para enviar';
+            if (emailInfo) {
+                emailInfo.textContent = data.failures.length + ' fallas listas para enviar';
+                emailInfo.className = 'has-data';
+            }
+            // Actualizar resumen
+            updateSendSummary();
         } else {
             showToast(data.message, 'danger');
         }
-    } catch (e) { showToast('Error al procesar datos', 'danger'); }
+    } catch (e) { 
+        showToast('Error al procesar datos', 'danger'); 
+    } finally {
+        // Restaurar botón
+        setProcesarState('active');
+    }
 }
 
 function renderPreview() {
-    var tbody = document.querySelector('#preview-table tbody');
-    tbody.innerHTML = '';
+    var tbody = document.getElementById('preview-tbody') ||
+                document.querySelector('#preview-table tbody');
+    
+    // Limpiar filas de datos (preservar empty-row)
+    Array.from(tbody.querySelectorAll('tr:not(#preview-empty-row)')).forEach(function(r) { r.remove(); });
+    
     var notFound = [];
 
-    failuresData.slice(0, 15).forEach(function(row) {
-        var idRaw = row['0'] || '';
-        var tipo = row['2'] || '';
+    // Filtrar headers - mostrar todos los ATMs (sin límite)
+    var dataToShow = failuresData.filter(function(row) {
+        return row['_is_header'] !== true;
+    });
+
+    var emptyRow = document.getElementById('preview-empty-row');
+    if (emptyRow) emptyRow.style.display = dataToShow.length === 0 ? '' : 'none';
+
+    dataToShow.forEach(function(row, i) {
+        var idRaw    = row['0'] || '';
+        var tipo     = row['2'] || '';
         var custodio = row['_custodio'] || '';
-        var found = row['_found'] === true || row['_found'] === 'true';
+        var found    = row['_found'] === true || row['_found'] === 'true';
 
         if (!found && idRaw.trim() && idRaw.toLowerCase() !== 'nan') {
             if (notFound.indexOf(idRaw) === -1) notFound.push(idRaw);
         }
 
-        var custLabel = custodio || '-';
+        var custLabel = custodio || '—';
         var custClass = custodioClass(custodio);
         var tr = document.createElement('tr');
-        tr.innerHTML = '<td><strong>' + idRaw + '</strong></td><td>' + tipo + '</td><td><span class="badge ' + custClass + '">' + custLabel + '</span></td>';
+        tr.className = 'row-animate';
+        tr.style.animationDelay = (i * 30) + 'ms';
+        tr.innerHTML =
+            '<td>' + idRaw + '</td>' +
+            '<td>' + tipo + '</td>' +
+            '<td><span class="' + custClass + '">' + custLabel + '</span></td>';
         tbody.appendChild(tr);
     });
 
     // Mostrar sección de no encontrados
     var section = document.getElementById('not-found-section');
-    var list = document.getElementById('not-found-list');
+    var list    = document.getElementById('not-found-list');
     if (notFound.length > 0) {
         section.style.display = 'block';
         list.innerHTML = '';
@@ -268,7 +319,7 @@ async function addNotFoundATM(idRaw) {
             }
             await loadData();
             renderPreview();
-            loadScripts();
+            // Ya no se generan automáticamente al agregar ATM
         } else {
             showToast(data.message || 'Error al guardar', 'danger');
         }
@@ -277,30 +328,171 @@ async function addNotFoundATM(idRaw) {
 
 function custodioClass(custodio) {
     var c = (custodio || '').toUpperCase();
-    if (c.indexOf('BRINKS') !== -1) return 'bg-warning text-dark';
-    if (c.indexOf('STE') !== -1) return 'bg-info';
-    if (c.indexOf('SUCURSAL') !== -1) return 'bg-success';
-    return 'bg-secondary';
+    if (c.indexOf('BRINKS') !== -1) return 'badge-custodio badge-brinks';
+    if (c.indexOf('STE')    !== -1) return 'badge-custodio badge-ste';
+    if (c.indexOf('SUCURSAL') !== -1 || c.startsWith('SUC')) return 'badge-custodio badge-sucursal';
+    if (custodio && custodio.trim()) return 'badge-custodio badge-otro';
+    return 'badge-custodio badge-desconocido';
+}
+
+function updateLineCount() {
+    var textarea = document.getElementById('pasted-text');
+    var counter = document.getElementById('line-count');
+    var btn = document.getElementById('btn-procesar');
+    
+    if (!textarea || !counter) return;
+    
+    var text = textarea.value.trim();
+    var lines = text ? text.split(/\r?\n/).filter(function(l) { return l.trim(); }).length : 0;
+    
+    counter.textContent = lines + (lines === 1 ? ' línea' : ' líneas');
+    counter.classList.toggle('has-lines', lines > 0);
+    textarea.classList.toggle('has-lines', lines > 0);
+    
+    // Animación de cambio
+    counter.classList.add('changed');
+    setTimeout(function() { counter.classList.remove('changed'); }, 200);
+    
+    // Habilitar/deshabilitar botón
+    if (btn) {
+        btn.disabled = lines === 0;
+    }
+}
+
+// Drag & Drop handlers
+function setupDropZone() {
+    var dropZone = document.querySelector('.drop-zone');
+    var textarea = document.getElementById('pasted-text');
+    if (!dropZone || !textarea) return;
+    
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(function(eventName) {
+        dropZone.addEventListener(eventName, preventDefaults, false);
+        document.body.addEventListener(eventName, preventDefaults, false);
+    });
+    
+    function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+    
+    ['dragenter', 'dragover'].forEach(function(eventName) {
+        dropZone.addEventListener(eventName, function() {
+            dropZone.classList.add('dragover');
+        }, false);
+    });
+    
+    ['dragleave', 'drop'].forEach(function(eventName) {
+        dropZone.addEventListener(eventName, function(e) {
+            if (eventName === 'dragleave' && e.target !== dropZone) return;
+            dropZone.classList.remove('dragover');
+        }, false);
+    });
+    
+    dropZone.addEventListener('drop', function(e) {
+        var dt = e.dataTransfer;
+        var files = dt.files;
+        if (files.length > 0) {
+            showToast('Arrastrar archivos no está implementado. Usá Ctrl+V para pegar datos.', 'warning');
+        }
+    }, false);
+}
+
+function setProcesarState(state, message) {
+    var btn = document.getElementById('btn-procesar');
+    var icon = document.getElementById('btn-procesar-icon');
+    var text = document.getElementById('btn-procesar-text');
+    
+    if (!btn) return;
+    
+    switch(state) {
+        case 'loading':
+            btn.disabled = true;
+            icon.className = 'bi bi-arrow-repeat spin me-1';
+            text.textContent = message || 'Procesando...';
+            break;
+        case 'active':
+            btn.disabled = false;
+            icon.className = 'bi bi-play-fill me-1';
+            text.textContent = message || 'Procesar Datos';
+            break;
+        case 'disabled':
+        default:
+            btn.disabled = true;
+            icon.className = 'bi bi-play-fill me-1';
+            text.textContent = message || 'Procesar Datos';
+    }
+}
+
+function updateSendSummary() {
+    var summaryDiv = document.getElementById('send-summary');
+    if (!summaryDiv || failuresData.length === 0) {
+        if (summaryDiv) summaryDiv.classList.add('d-none');
+        return;
+    }
+    
+    var sucursales = 0;
+    var terceros = 0;
+    
+    failuresData.forEach(function(row) {
+        var custodio = (row['_custodio'] || '').toUpperCase();
+        if (custodio.includes('SUCURSAL') || custodio.startsWith('SUC')) {
+            sucursales++;
+        } else if (custodio && custodio !== '—') {
+            terceros++;
+        }
+    });
+    
+    var total = failuresData.length;
+    var html = '<span class="stat stat-total">' +
+               '<span class="stat-badge">' + total + '</span> ATMs' +
+               '</span>';
+    
+    if (sucursales > 0) {
+        html += '<span class="stat stat-suc">' +
+                '<span class="stat-badge">' + sucursales + '</span> Sucursales' +
+                '</span>';
+    }
+    if (terceros > 0) {
+        html += '<span class="stat stat-ter">' +
+                '<span class="stat-badge">' + terceros + '</span> Terceros' +
+                '</span>';
+    }
+    
+    summaryDiv.innerHTML = html;
+    summaryDiv.classList.remove('d-none');
 }
 
 function clearFailures() {
     document.getElementById('pasted-text').value = '';
     failuresData = [];
     scriptsFallas = [];
-    renderPreview();
-    document.getElementById('scripts-container-fallas').innerHTML = '<div class="text-center text-muted py-5"><i class="bi bi-inbox fs-1 d-block mb-2"></i>Cargá fallas en Gestión de Fallas para generar scripts.</div>';
-    var emailInfo = document.getElementById('email-info');
-    if (emailInfo) emailInfo.textContent = 'Cargá fallas para comenzar';
-    document.getElementById('not-found-section').style.display = 'none';
-    showToast('Datos limpiados', 'success');
-}
+    
+    // Restaurar empty state en la tabla
+    var tbody = document.getElementById('preview-tbody') ||
+                document.querySelector('#preview-table tbody');
+    Array.from(tbody.querySelectorAll('tr:not(#preview-empty-row)')).forEach(function(r) { r.remove(); });
+    var emptyRow = document.getElementById('preview-empty-row');
+    if (emptyRow) emptyRow.style.display = '';
 
-function clearScriptsCB() {
-    document.getElementById('cb-search-text').value = '';
-    scriptsCB = [];
-    renderCbFoundTable([]);
-    document.getElementById('scripts-container-cb').innerHTML = '<div class="text-center text-muted py-5"><i class="bi bi-inbox fs-1 d-block mb-2"></i>Generá scripts en Close & Block para verlos aquí.</div>';
-    showToast('Scripts C&B limpiados', 'success');
+    document.getElementById('scripts-container-fallas').innerHTML = '<div class="text-center text-muted py-5"><i class="bi bi-inbox fs-1 d-block mb-2"></i>Cargá fallas en Gestión de Fallas para generar scripts.</div>';
+    
+    var emailInfo = document.getElementById('email-info');
+    if (emailInfo) {
+        emailInfo.textContent = 'Cargá fallas para comenzar';
+        emailInfo.className = '';
+    }
+    
+    // Ocultar resumen
+    var summaryDiv = document.getElementById('send-summary');
+    if (summaryDiv) summaryDiv.classList.add('d-none');
+    
+    document.getElementById('not-found-section').style.display = 'none';
+    
+    // Resetear contador y botón
+    updateLineCount();
+    setProcesarState('disabled');
+    
+    showToast('Datos limpiados', 'success');
 }
 
 // ==========================================
@@ -308,21 +500,37 @@ function clearScriptsCB() {
 // ==========================================
 
 async function loadScripts() {
-    if (failuresData.length === 0) return;
+    if (failuresData.length === 0) return showToast('Cargá fallas primero', 'danger');
     var isFeriado = document.getElementById('mode-feriado').checked;
+
+    // Filtrar el header (filas con _is_header: true)
+    var failuresSinHeader = failuresData.filter(function(row) {
+        return row['_is_header'] !== true;
+    });
 
     try {
         var res = await fetch('/api/generate-scripts', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ failures: failuresData, is_feriado: isFeriado })
+            body: JSON.stringify({ failures: failuresSinHeader, is_feriado: isFeriado })
         });
         var data = await res.json();
         if (data.status === 'success') {
             scriptsFallas = data.scripts || [];
             renderScriptsOnlyFallas();
+            showToast(scriptsFallas.length + ' scripts generados', 'success');
+            // Cambiar al tab de scripts para mostrar los resultados
+            document.querySelectorAll('.tab-content').forEach(function(t) { t.classList.remove('active'); });
+            document.getElementById('tab-scripts').classList.add('active');
+            document.querySelectorAll('#mainTabs .nav-link').forEach(function(b) { b.classList.remove('active'); });
+            var scriptsLink = document.querySelector('#mainTabs .nav-link[onclick*="scripts"]');
+            if (scriptsLink) scriptsLink.classList.add('active');
+            syncSendPanelVisibility();
         }
-    } catch (e) { console.error(e); }
+    } catch (e) { 
+        console.error(e);
+        showToast('Error al generar scripts', 'danger');
+    }
 }
 
 function renderScriptsOnlyFallas() {
@@ -346,36 +554,6 @@ function renderScriptsOnlyFallas() {
                 '<button onclick="copyToClipboard(\'' + safeComment + '\')" class="btn btn-outline-dark btn-sm"><i class="bi bi-clipboard"></i></button>' +
             '</div>' +
             '<code class="small text-dark">' + s.comentario + '</code>';
-        container.appendChild(div);
-    });
-}
-
-function renderScriptsOnlyCB() {
-    var container = document.getElementById('scripts-container-cb');
-    container.innerHTML = '';
-    
-    var validScripts = scriptsCB.filter(function(s) {
-        var tk = (s.ticket || '').replace(/N\/A/gi, '').trim();
-        return tk !== '';
-    });
-    
-    if (validScripts.length === 0) {
-        container.innerHTML = '<div class="text-center text-muted py-5">No se generaron scripts de Close & Block.</div>';
-        return;
-    }
-    
-    validScripts.forEach(function(s) {
-        var div = document.createElement('div');
-        div.className = 'script-item';
-        var tk = (s.ticket || '').replace(/N\/A/gi, '').trim();
-        var cleanComment = (s.comentario || '').replace(/^[\d]+\s*N\/A\s*/, '').trim();
-        var safeComment = cleanComment.replace(/'/g, "\\'").replace(/"/g, '&quot;');
-        div.innerHTML =
-            '<div class="script-header">' +
-                '<span class="badge bg-dark">' + tk + '</span>' +
-                '<button onclick="copyToClipboard(\'' + safeComment + '\')" class="btn btn-outline-dark btn-sm"><i class="bi bi-clipboard"></i></button>' +
-            '</div>' +
-            '<code class="small text-dark">' + cleanComment + '</code>';
         container.appendChild(div);
     });
 }
@@ -420,39 +598,6 @@ async function exportScriptsToExcel() {
     } catch (e) { showToast('Error de conexión', 'danger'); }
 }
 
-async function exportScriptsCBToExcel() {
-    if (scriptsCB.length === 0) return showToast('No hay scripts C&B para exportar', 'danger');
-
-    var validScripts = scriptsCB.filter(function(s) {
-        var tk = (s.ticket || '').replace(/N\/A/gi, '').trim();
-        return tk !== '';
-    });
-
-    if (validScripts.length === 0) return showToast('No hay scripts válidos para exportar', 'danger');
-
-    try {
-        var res = await fetch('/api/export-scripts', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ scripts: validScripts })
-        });
-
-        if (res.ok) {
-            var blob = await res.blob();
-            var url = window.URL.createObjectURL(blob);
-            var a = document.createElement('a');
-            a.href = url;
-            a.download = 'Scripts_CB_Export_' + new Date().getTime() + '.xlsx';
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            showToast('Excel exportado', 'success');
-        } else {
-            showToast('Error al exportar', 'danger');
-        }
-    } catch (e) { showToast('Error de conexión', 'danger'); }
-}
-
 function copyToClipboard(text) {
     navigator.clipboard.writeText(text).then(function() {
         showToast('Copiado al portapapeles', 'success');
@@ -467,11 +612,16 @@ async function sendEmails() {
     if (failuresData.length === 0) return showToast('Cargá fallas primero', 'danger');
     var isFeriado = document.getElementById('mode-feriado').checked;
 
+    // Filtrar el header (filas con _is_header: true)
+    var failuresSinHeader = failuresData.filter(function(row) {
+        return row['_is_header'] !== true;
+    });
+
     try {
         var res = await fetch('/api/send-emails', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ failures: failuresData, is_feriado: isFeriado })
+            body: JSON.stringify({ failures: failuresSinHeader, is_feriado: isFeriado })
         });
         var data = await res.json();
         if (data.status === 'success') {
@@ -586,8 +736,20 @@ async function loadXolRecords() {
 
 function renderXolTable() {
     var tbody = document.querySelector('#xol-table tbody');
+    var emptyState = document.getElementById('xol-empty');
+    var tableWrap = document.querySelector('.xol-table-wrap');
+
     tbody.innerHTML = '';
-    xolRecords.forEach(function(r) {
+
+    if (xolRecords.length === 0) {
+        if (emptyState) emptyState.style.display = 'flex';
+        if (tableWrap) tableWrap.style.display = 'none';
+        return;
+    }
+    if (emptyState) emptyState.style.display = 'none';
+    if (tableWrap) tableWrap.style.display = 'block';
+
+    xolRecords.forEach(function(r, idx) {
         var tr = document.createElement('tr');
         tr.innerHTML =
             '<td><strong>' + (r.incident || '') + '</strong></td>' +
@@ -598,9 +760,22 @@ function renderXolTable() {
             '<td>' + (r.sla || '') + '</td>' +
             '<td>' + (r.atm_nombre || '') + '</td>' +
             '<td class="text-truncate" style="max-width:100px;">' + (r.custodio || '') + '</td>' +
-            '<td class="text-muted small">' + (r.fecha_reg || '') + '</td>';
+            '<td class="text-muted small">' + (r.fecha_reg || '') + '</td>' +
+            '<td class="text-center">' +
+                '<button class="btn btn-outline-danger btn-sm py-1 px-2" ' +
+                    'onclick="deleteXolRecord(' + idx + ')" title="Eliminar">' +
+                    '<i class="bi bi-x-lg"></i>' +
+                '</button>' +
+            '</td>';
         tbody.appendChild(tr);
     });
+}
+
+function deleteXolRecord(idx) {
+    xolRecords.splice(idx, 1);
+    renderXolTable();
+    showToast('Registro eliminado', 'danger');
+    updateIncidentDropdown();
 }
 
 function estadoBadge(estado) {
@@ -690,15 +865,19 @@ document.getElementById('rcu-upload').addEventListener('change', async function(
 
         if (data.status === 'success' && data.results) {
             var r = data.results;
-            statusDiv.innerHTML =
+            var html =
                 '<div class="alert alert-success py-2 mb-0">' +
                     '<i class="bi bi-check-circle-fill me-1"></i> <strong>Completado</strong>' +
                     '<div class="mt-1 small">' +
                         '<div><i class="bi bi-arrow-repeat me-1"></i> Actualizados: <strong>' + r.actualizados + '</strong></div>' +
-                        '<div><i class="bi bi-plus-circle me-1"></i> Nuevos: <strong>' + r.nuevos + '</strong></div>' +
-                        '<div class="text-muted"><i class="bi bi-files me-1"></i> Total procesados: ' + r.total_procesados + ' de ' + r.total_archivo + '</div>' +
+                        '<div><i class="bi bi-plus-circle me-1"></i> Nuevos: <strong>' + r.nuevos + '</strong></div>';
+            if (r.eliminados > 0) {
+                html += '<div><i class="bi bi-trash3 me-1"></i> Eliminados: <strong>' + r.eliminados + '</strong></div>';
+            }
+            html += '<div class="text-muted"><i class="bi bi-database me-1"></i> Total ATMs en planilla: <strong>' + r.total_planilla + '</strong></div>' +
                     '</div>' +
                 '</div>';
+            statusDiv.innerHTML = html;
             showToast('RCU procesado: ' + r.actualizados + ' actualizados, ' + r.nuevos + ' nuevos', 'success');
         } else if (data.status === 'success') {
             statusDiv.innerHTML =
@@ -729,137 +908,6 @@ document.getElementById('rcu-upload').addEventListener('change', async function(
     }
 });
 
-// ==========================================
-// CLOSED AND BLOCK
-// ==========================================
-
-// Normalizar IDs de ATMs en texto (RD05327 -> BHD05327)
-function normalizarATMsEnTexto(texto) {
-    if (!texto) return texto;
-    // Reemplazar RD0 por BHD (RD05332 -> BHD05332)
-    return texto.replace(/RD0/gi, 'BHD');
-}
-
-async function cbAgregar() {
-    var textRaw = document.getElementById('cb-text').value.trim();
-    var asunto = document.getElementById('cb-asunto').value.trim();
-    var reportadoPor = document.getElementById('cb-reportado-por').value.trim();
-
-    if (!textRaw) return showToast('Ingresá IDs primero', 'danger');
-
-    // Normalizar IDs de ATMs (RD05327 -> BHD05327)
-    var text = normalizarATMsEnTexto(textRaw);
-
-    try {
-        var res = await fetch('/api/closed-block/agregar', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text: text, asunto: asunto, reportado_por: reportadoPor })
-        });
-        var data = await res.json();
-        if (data.status === 'success') {
-            showToast(data.message, 'success');
-            document.getElementById('cb-text').value = '';
-            document.getElementById('cb-asunto').value = '';
-            document.getElementById('cb-reportado-por').value = '';
-        } else {
-            showToast(data.message || 'Error', 'danger');
-        }
-    } catch (e) { showToast('Error de conexión', 'danger'); }
-}
-
-function cbLimpiarInput() {
-    document.getElementById('cb-text').value = '';
-    document.getElementById('cb-asunto').value = '';
-    document.getElementById('cb-reportado-por').value = '';
-    showToast('Área limpiada', 'success');
-}
-
-async function cbBuscarCoincidencias() {
-    var text = document.getElementById('cb-search-text').value.trim();
-    if (!text) return showToast('Pegá datos de fallas primero', 'danger');
-
-    try {
-        var res = await fetch('/api/closed-block/buscar', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text: text })
-        });
-        var data = await res.json();
-        if (data.status === 'success') {
-            renderCbFoundTable(data.found || []);
-        } else {
-            showToast(data.message || 'Error', 'danger');
-        }
-    } catch (e) { showToast('Error de conexión', 'danger'); }
-}
-
-function renderCbFoundTable(found) {
-    var tbody = document.getElementById('cb-found-tbody');
-    var emptyDiv = document.getElementById('cb-found-empty');
-    var tableContainer = document.getElementById('cb-found-table').parentElement;
-    var headerDiv = document.getElementById('cb-found-header');
-    var countSpan = document.getElementById('cb-found-count');
-
-    tbody.innerHTML = '';
-
-    if (!found || found.length === 0) {
-        emptyDiv.style.display = 'block';
-        tableContainer.style.display = 'none';
-        headerDiv.style.display = 'none';
-        return;
-    }
-
-    emptyDiv.style.display = 'none';
-    tableContainer.style.display = 'block';
-    headerDiv.style.display = 'block';
-    countSpan.textContent = found.length;
-
-    found.forEach(function(r) {
-        var horas = parseInt(r.horas) || 0;
-        var colorClass = horas >= 48 ? 'bg-danger' : horas >= 36 ? 'bg-warning text-dark' : 'bg-secondary';
-        var tr = document.createElement('tr');
-        tr.className = 'table-danger';
-        tr.innerHTML =
-            '<td><strong>' + r.id + '</strong></td>' +
-            '<td class="small text-truncate" style="max-width:120px;">' + (r.nombre || '-') + '</td>' +
-            '<td class="small">' + (r.custodio || '-') + '</td>' +
-            '<td><span class="badge ' + colorClass + '">' + r.horas + '</span></td>' +
-            '<td class="small text-muted">' + (r.fecha || '-') + '</td>' +
-            '<td class="small text-truncate" style="max-width:100px;" title="' + (r.asunto || '') + '">' + (r.asunto || '-') + '</td>' +
-            '<td class="small">' + (r.reportado_por || '-') + '</td>';
-        tbody.appendChild(tr);
-    });
-}
-
-function cbLimpiarBusqueda() {
-    document.getElementById('cb-search-text').value = '';
-    renderCbFoundTable([]);
-    showToast('Búsqueda limpiada', 'success');
-}
-
-async function cbGenerarScripts() {
-    var text = document.getElementById('cb-search-text').value.trim();
-    if (!text) return showToast('Pegá datos primero', 'danger');
-
-    try {
-        var res = await fetch('/api/generate-scripts-cb', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text: text })
-        });
-        var data = await res.json();
-        if (data.status === 'success') {
-            scriptsCB = data.scripts || [];
-            renderScriptsOnlyCB();
-            showToast(scriptsCB.length + ' scripts C&B generados', 'success');
-            showTab('scripts');
-        } else {
-            showToast(data.message || 'Error', 'danger');
-        }
-    } catch (e) { showToast('Error de conexión', 'danger'); }
-}
-
 function toggleCollapse(id) {
     var el = document.getElementById(id);
     var icon = document.getElementById(id + '-icon');
@@ -873,10 +921,245 @@ function toggleCollapse(id) {
 }
 
 // ==========================================
+// TAB CONTACTOS
+// ==========================================
+
+var contactosData = null;
+
+async function loadContactos() {
+    try {
+        var res = await fetch('/api/contactos/list');
+        var data = await res.json();
+        if (data.status === 'success') {
+            contactosData = data.data;
+            renderTercerosLV();
+            renderTercerosFinde();
+            renderSucursalFinde();
+        } else {
+            showToast(data.message || 'Error', 'danger');
+        }
+    } catch (e) { showToast('Error de conexión', 'danger'); }
+}
+
+// ── TERCEROS L-V ──
+function renderTercerosLV() {
+    var tbody = document.getElementById('contactos-terceros-lv-tbody');
+    tbody.innerHTML = '';
+    var lista = contactosData.terceros || [];
+    if (lista.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3">Sin custodios</td></tr>';
+        return;
+    }
+    lista.forEach(function(c) {
+        var tr = document.createElement('tr');
+        var safe = escAttr(c.custodio);
+        tr.innerHTML =
+            '<td class="fw-semibold">' + c.custodio + '</td>' +
+            '<td><input type="text" class="form-control form-control-sm" value="' + escAttr(c.email) + '" id="ter-lv-' + safe + '-email"></td>' +
+            '<td><input type="text" class="form-control form-control-sm" value="' + escAttr(c.cc) + '" id="ter-lv-' + safe + '-cc"></td>' +
+            '<td><button onclick="confirmarGuardarTercero(\'' + safe + '\', \'semana\')" class="btn btn-outline-success btn-sm" title="Guardar L-V"><i class="bi bi-check-lg"></i></button></td>';
+        tbody.appendChild(tr);
+    });
+}
+
+// ── TERCEROS FINDE ──
+function renderTercerosFinde() {
+    var tbody = document.getElementById('contactos-terceros-finde-tbody');
+    tbody.innerHTML = '';
+    var lista = contactosData.terceros || [];
+    if (lista.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3">Sin custodios</td></tr>';
+        return;
+    }
+    lista.forEach(function(c) {
+        var tr = document.createElement('tr');
+        var safe = escAttr(c.custodio);
+        tr.innerHTML =
+            '<td class="fw-semibold">' + c.custodio + '</td>' +
+            '<td><input type="text" class="form-control form-control-sm" value="' + escAttr(c.email_finde) + '" id="ter-finde-' + safe + '-email" placeholder="finde..."></td>' +
+            '<td><input type="text" class="form-control form-control-sm" value="' + escAttr(c.cc_finde) + '" id="ter-finde-' + safe + '-cc" placeholder="finde..."></td>' +
+            '<td><button onclick="confirmarGuardarTercero(\'' + safe + '\', \'finde\')" class="btn btn-outline-warning btn-sm" title="Guardar Finde"><i class="bi bi-check-lg"></i></button></td>';
+        tbody.appendChild(tr);
+    });
+}
+
+function confirmarGuardarTercero(custodio, solo) {
+    var label = solo === 'finde' ? '¿Guardar solo contactos de Finde para ' + custodio + '?'
+              : solo === 'semana' ? '¿Guardar solo contactos de L-V para ' + custodio + ' (todos sus ATMs)?'
+              : '¿Actualizar todos los contactos de ' + custodio + '?';
+    showConfirm(label, function() {
+        guardarTercero(custodio, solo);
+    }, 'Guardar cambios');
+}
+
+async function guardarTercero(custodio, solo) {
+    var aplica_finde = false;
+    var email = '', cc = '', email_finde = '', cc_finde = '';
+    var msg = '';
+
+    if (!solo || solo === 'semana') {
+        email = document.getElementById('ter-lv-' + custodio + '-email').value.trim();
+        cc = document.getElementById('ter-lv-' + custodio + '-cc').value.trim();
+        msg = 'L-V actualizado';
+    }
+    if (!solo || solo === 'finde') {
+        email_finde = document.getElementById('ter-finde-' + custodio + '-email').value.trim();
+        cc_finde = document.getElementById('ter-finde-' + custodio + '-cc').value.trim();
+        aplica_finde = !!(email_finde || cc_finde);
+        msg = solo === 'finde' ? 'Finde actualizado' : msg;
+    }
+
+    try {
+        var res = await fetch('/api/contactos/guardar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ custodio: custodio, email: email, cc: cc, aplica_finde: aplica_finde, email_finde: email_finde, cc_finde: cc_finde, tipo: 'tercero', solo: solo || '' })
+        });
+        var data = await res.json();
+        if (data.status === 'success') {
+            showToast(msg + ' (' + data.cambios + ' cambios)', 'success');
+            loadContactos();
+        } else {
+            showToast(data.message || data.error || 'Error', 'danger');
+        }
+    } catch (e) { showToast('Error de conexión', 'danger'); }
+}
+function escAttr(s) { return (s || '').replace(/'/g, "\\'").replace(/"/g, '&quot;'); }
+
+// ── SHUTDOWN ──
+async function shutdownServer() {
+    showConfirm('Esto cerrara el servidor. Deberas volver a abrir la app.', async function() {
+        try {
+            await fetch('/api/shutdown', { method: 'POST' });
+        } catch (e) {}
+        document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;">' +
+            '<div style="text-align:center;"><h3>Servidor detenido</h3><p style="color:#64748B;">Podes cerrar esta ventana.</p></div></div>';
+    }, 'Cerrar servidor');
+}
+
+// ── SUCURSALES ──
+var sucFilterTimeout = null;
+
+function filtrarSucursales() {
+    var q = (document.getElementById('contactos-suc-search').value || '').toLowerCase().trim();
+    var tbody = document.getElementById('contactos-sucursales-tbody');
+    var clearBtn = document.getElementById('contactos-suc-clear');
+    var countBadge = document.getElementById('contactos-suc-count');
+    var countNum = document.getElementById('contactos-suc-num');
+    tbody.innerHTML = '';
+
+    // Mostrar/ocultar botón clear
+    clearBtn.style.display = q ? 'block' : 'none';
+
+    if (!contactosData) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-5"><i class="bi bi-exclamation-circle fs-3 d-block mb-2 opacity-25"></i>Cargá contactos primero</td></tr>';
+        countBadge.classList.add('d-none');
+        return;
+    }
+    var lista = contactosData.sucursales || [];
+    if (!q) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-5"><i class="bi bi-search fs-3 d-block mb-2 opacity-25"></i>Buscá una sucursal por ID o nombre</td></tr>';
+        countBadge.classList.add('d-none');
+        return;
+    }
+    var filtrados = lista.filter(function(s) {
+        return s.id.toLowerCase().includes(q) || s.nombre.toLowerCase().includes(q);
+    });
+    if (filtrados.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4"><i class="bi bi-emoji-frown fs-3 d-block mb-2 opacity-25"></i>Sin resultados para "<b>' + escHTML(q) + '"</b></td></tr>';
+        countBadge.classList.add('d-none');
+        return;
+    }
+    // Mostrar contador
+    countNum.textContent = filtrados.length;
+    countBadge.classList.remove('d-none');
+
+    filtrados.slice(0, 30).forEach(function(s) {
+        var tr = document.createElement('tr');
+        tr.className = 'row-animate';
+        tr.innerHTML =
+            '<td class="fw-semibold" style="font-family:monospace;">' + s.id + '</td>' +
+            '<td class="small">' + s.nombre + '</td>' +
+            '<td><input type="text" class="form-control form-control-sm" value="' + escAttr(s.email) + '" id="suc-' + escAttr(s.id) + '-email"></td>' +
+            '<td><input type="text" class="form-control form-control-sm" value="' + escAttr(s.cc) + '" id="suc-' + escAttr(s.id) + '-cc"></td>' +
+            '<td><button onclick="guardarSucursal(\'' + escAttr(s.id) + '\')" class="btn btn-primary btn-sm"><i class="bi bi-check-lg"></i> Guardar</button></td>';
+        tbody.appendChild(tr);
+    });
+}
+
+function escHTML(s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+
+function limpiarBusquedaSucursal() {
+    document.getElementById('contactos-suc-search').value = '';
+    filtrarSucursales();
+    document.getElementById('contactos-suc-search').focus();
+}
+
+async function guardarSucursal(atmId) {
+    var email = document.getElementById('suc-' + atmId + '-email').value.trim();
+    var cc = document.getElementById('suc-' + atmId + '-cc').value.trim();
+    showConfirm('¿Guardar cambios para ' + atmId + '?', async function() {
+        try {
+            var res = await fetch('/api/contactos/guardar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ custodio: atmId, email: email, cc: cc, aplica_finde: false, tipo: 'sucursal' })
+            });
+            var data = await res.json();
+            if (data.status === 'success') {
+                showToast('Contacto de ' + atmId + ' actualizado', 'success');
+                loadContactos();
+                filtrarSucursales();
+            } else {
+                showToast(data.message || data.error || 'Error', 'danger');
+            }
+        } catch (e) { showToast('Error de conexión', 'danger'); }
+    }, 'Guardar sucursal');
+}
+
+// ── SUCURSAL FINDE ──
+function renderSucursalFinde() {
+    var finde = contactosData.sucursal_finde || {};
+    document.getElementById('contactos-suc-finde-email').value = finde.email || '';
+    document.getElementById('contactos-suc-finde-cc').value = finde.cc || '';
+}
+
+async function guardarSucursalFinde() {
+    var email = document.getElementById('contactos-suc-finde-email').value.trim();
+    var cc = document.getElementById('contactos-suc-finde-cc').value.trim();
+    showConfirm('¿Guardar contacto de finde para todas las sucursales?', async function() {
+        try {
+            var res = await fetch('/api/contactos/guardar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ custodio: 'SUCURSAL', email: email, cc: cc, aplica_finde: true, tipo: 'sucursal_finde' })
+            });
+            var data = await res.json();
+            if (data.status === 'success') {
+                showToast('Contacto finde SUCURSAL actualizado', 'success');
+            } else {
+                showToast(data.message || data.error || 'Error', 'danger');
+            }
+        } catch (e) { showToast('Error de conexión', 'danger'); }
+    }, 'Guardar finde SUCURSAL');
+}
+
+// ==========================================
 // INIT
 // ==========================================
 
 updateStatus();
 loadData();
+loadContactos();
 setInterval(updateStatus, 30000);
+
+// Setup drag & drop zone
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function() {
+        setupDropZone();
+        syncSendPanelVisibility();
+    });
+} else {
+    setupDropZone();
+}
 

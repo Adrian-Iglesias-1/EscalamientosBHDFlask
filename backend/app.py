@@ -2,20 +2,54 @@ from flask import Flask, request, jsonify, render_template, send_file
 from flask_cors import CORS
 from datetime import datetime
 import os
+import sys
 import io
 import pandas as pd
 from excel_handler import ExcelHandler
 from outlook_handler import crear_correo_outlook, WINDOWS_OUTLOOK_AVAILABLE
-from closed_and_block_handler import ClosedAndBlockHandler
 
 app = Flask(__name__, static_folder='static', template_folder='templates')
 CORS(app)
 
 # Configuration
-DEFAULT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "PlanillaEscalamientos.xlsx")
-CLOSED_BLOCK_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ClosedAndBlock.xlsx")
+if getattr(sys, 'frozen', False):
+    APP_DIR = os.path.dirname(sys.executable)
+    # Primer ejecucion: copiar xlsx desde el bundle
+    xlsx_destino = os.path.join(APP_DIR, "PlanillaEscalamientos.xlsx")
+    xlsx_bundle = os.path.join(sys._MEIPASS, "PlanillaEscalamientos.xlsx")
+    if not os.path.exists(xlsx_destino) and os.path.exists(xlsx_bundle):
+        import shutil
+        shutil.copy2(xlsx_bundle, xlsx_destino)
+    # Crear acceso directo
+    try:
+        import tempfile, subprocess
+        ps_script = (
+            '$desktop = [Environment]::GetFolderPath("Desktop"); '
+            '$sc_path = Join-Path $desktop "EscalamientosApp.lnk"; '
+            '$ws = New-Object -ComObject WScript.Shell; '
+            '$sc = $ws.CreateShortcut($sc_path); '
+            '$sc.TargetPath = "' + sys.executable + '"; '
+            '$sc.WorkingDirectory = "' + APP_DIR + '"; '
+            '$sc.Description = "Gestion de Escalamientos ATM - BHD"; '
+            '$sc.Save()'
+        )
+        ps_file = os.path.join(tempfile.gettempdir(), "_esc_shortcut.ps1")
+        with open(ps_file, 'w', encoding='utf-8') as f:
+            f.write(ps_script)
+        subprocess.run(
+            ['powershell', '-ExecutionPolicy', 'Bypass', '-File', ps_file],
+            capture_output=True,
+            creationflags=0x08000000  # CREATE_NO_WINDOW
+        )
+        try: os.remove(ps_file)
+        except: pass
+    except:
+        pass
+    DEFAULT_PATH = xlsx_destino
+else:
+    APP_DIR = os.path.dirname(os.path.abspath(__file__))
+    DEFAULT_PATH = os.path.join(APP_DIR, "PlanillaEscalamientos.xlsx")
 excel = ExcelHandler(DEFAULT_PATH)
-closed_block = ClosedAndBlockHandler(CLOSED_BLOCK_PATH)
 
 # Almacenamiento en memoria para XOLUSAT (igual que st.session_state.xolusat)
 xolusat_records = []
@@ -23,6 +57,75 @@ xolusat_records = []
 
 def es_sucursal(c):
     return "SUCURSAL" in c or c.startswith("SUC")
+
+
+def _limpiar_par_email(email, cc):
+    """Devuelve ('', '') si el email es NaN de pandas, o el par original."""
+    if isinstance(email, float) and pd.isna(email):
+        return "", ""
+    return email, cc
+
+
+def obtener_contacto_atm(id_norm, custodio, es_fin_de_semana, data):
+    """
+    Resuelve (email, cc) para un ATM dado su custodio y el contexto temporal.
+
+    Orden de prioridad:
+      SUCURSAL  → finde/feriado: contactos_finde["SUCURSAL"]
+                → semana:        contactos_suc[id_norm]
+      TERCEROS  → 1. ID exacto en dict activo
+                → 2. Nombre de custodio exacto en dict activo
+                → 3. Match exacto (sin espacios) en dict activo
+                → 4. Keyword (BRINKS / STE) en dict activo
+    """
+    cust_norm = excel.normalizar(custodio)
+    dict_contactos = data['contactos_finde'] if es_fin_de_semana else data['contactos']
+
+    # ── SUCURSAL ─────────────────────────────────────────────────────────────
+    if es_sucursal(cust_norm):
+        if es_fin_de_semana and "SUCURSAL" in data['contactos_finde']:
+            return _limpiar_par_email(*data['contactos_finde']["SUCURSAL"])
+        if id_norm in data['contactos_suc']:
+            return _limpiar_par_email(*data['contactos_suc'][id_norm])
+        return "", ""
+
+    # ── TERCEROS ─────────────────────────────────────────────────────────────
+    # 1. Por ID exacto
+    if id_norm in dict_contactos:
+        email, cc = _limpiar_par_email(*dict_contactos[id_norm])
+        if email:
+            return email, cc
+
+    # 2. Por nombre de custodio exacto
+    if custodio in dict_contactos:
+        email, cc = _limpiar_par_email(*dict_contactos[custodio])
+        if email:
+            return email, cc
+
+    # 3 y 4. Búsqueda heurística (match sin espacios → keywords)
+    cust_upper = cust_norm.upper().replace(" ", "")
+    match_exacto = None
+    match_keyword = None
+
+    for key, val in dict_contactos.items():
+        key_upper = key.upper().replace(" ", "")
+        if key_upper.startswith("BHD"):
+            continue
+        if match_exacto is None and cust_upper == key_upper:
+            match_exacto = val
+        if match_keyword is None:
+            if "BRINKS" in cust_upper and "BRINKS" in key_upper:
+                match_keyword = val
+            elif "STE" in cust_upper and "STE" in key_upper:
+                match_keyword = val
+
+    for candidato in (match_exacto, match_keyword):
+        if candidato is not None:
+            email, cc = _limpiar_par_email(*candidato)
+            if email:
+                return email, cc
+
+    return "", ""
 
 
 # ==========================================
@@ -48,29 +151,6 @@ def get_status():
     })
 
 
-@app.route('/api/debug/contacts', methods=['GET'])
-def debug_contacts():
-    """Endpoint temporal para debuggear datos de custodios y contactos"""
-    # Muestra custodios únicos del UNIFICADO
-    custodios = {}
-    for k, v in excel.data['unificado'].items():
-        c = v.get('custodio', '')
-        if c not in custodios:
-            custodios[c] = 0
-        custodios[c] += 1
-
-    return jsonify({
-        'contactos_semana_keys': list(excel.data['contactos'].keys()),
-        'contactos_finde_keys': list(excel.data['contactos_finde'].keys()),
-        'custodios_unicos': custodios,
-        'unificado_ejemplo': {k: excel.data['unificado'][k] for k in list(excel.data['unificado'].keys())[:5]},
-        'total_unificado': len(excel.data['unificado']),
-        'total_contactos': len(excel.data['contactos']),
-        'total_finde': len(excel.data['contactos_finde']),
-        'total_suc': len(excel.data['contactos_suc'])
-    })
-
-
 @app.route('/api/load-data', methods=['GET'])
 def load_data():
     success, message = excel.cargar_datos()
@@ -90,18 +170,14 @@ def process_failures():
         return jsonify({'status': 'error', 'message': 'No se proporcionaron datos.'}), 400
 
     try:
-        # Limpiar líneas vacías
+        # Limpiar líneas vacías al inicio y final
         lines = [line for line in content.split('\n') if line.strip()]
         clean_content = '\n'.join(lines)
 
-        # Detectar si la primera fila es header (igual que original app2.py)
-        primer_linea = clean_content.split("\n")[0].upper()
-        has_header = "ID" in primer_linea or "ADDRESS" in primer_linea or "INICIO" in primer_linea
-
-        if has_header:
-            df = pd.read_csv(io.StringIO(clean_content), sep="\t")
-        else:
-            df = pd.read_csv(io.StringIO(clean_content), sep="\t", header=None)
+        # Siempre procesamos como SIN header para no perder la primera fila
+        # El usuario siempre pega CON encabezados según la nueva instrucción
+        # Por eso usamos header=None para que todo sea data
+        df = pd.read_csv(io.StringIO(clean_content), sep="\t", header=None)
 
         # Forzar nombres de columnas como strings "0", "1", "2"... para el frontend
         df.columns = [str(i) for i in range(len(df.columns))]
@@ -109,10 +185,25 @@ def process_failures():
         # Reemplazar valores NaN por strings vacíos para evitar errores en JSON
         df = df.fillna("")
 
+        # Detectar si la primera fila es header para excluirla del procesamiento
+        def es_fila_header(row):
+            """Detecta si una fila parece ser un header (encabezado de Excel)"""
+            primer_valor = str(row.get('0', '')).upper().strip()
+            header_keywords = ['ID', 'ADDRESS', 'INICIO', 'MODEL', 'FECHA', 'DESCRIPTION', 
+                               'TICKET', 'AGENCIA', 'TIPO', 'STATUS', 'STATE', 'NOMBRE']
+            return any(kw in primer_valor for kw in header_keywords)
+
         # Agregar custodio desde UNIFICADO
         failures = []
-        for _, row in df.iterrows():
-            record = row.to_dict()
+        for idx, row in enumerate(df.iterrows()):
+            record = row[1].to_dict()
+            
+            # Marcar la primera fila como header si corresponde
+            if idx == 0 and es_fila_header(record):
+                record['_is_header'] = True
+            else:
+                record['_is_header'] = False
+            
             id_raw = str(record.get('0', '')).strip()
             id_norm = excel.normalizar(id_raw)
             info = excel.data['unificado'].get(id_norm, {})
@@ -168,70 +259,11 @@ def send_emails():
         cc = ""
         asunto = ""
 
-        # --- FLUJO ORIGINAL (app2.py líneas ~700-750) ---
+        # ── Resolver contacto ─────────────────────────────────────────────────
         if id_norm in excel.data['unificado']:
             info = excel.data['unificado'][id_norm]
             custodio = info.get('custodio', '')
-            cust_norm = excel.normalizar(custodio)
-
-            # PRIORIZAR: Contactos específicos del ATM en contactos_suc SOLO para SUCURSAL
-            # PERO si es fin de semana/feriado, buscar primero en contactos_finde para SUCURSAL
-            if es_sucursal(cust_norm):
-                if es_fin_de_semana and "SUCURSAL" in excel.data['contactos_finde']:
-                    # Usar contacto de fin de semana para SUCURSAL
-                    email, cc = excel.data['contactos_finde']["SUCURSAL"]
-                elif id_norm in excel.data['contactos_suc']:
-                    # Usar contacto específico del ATM
-                    email, cc = excel.data['contactos_suc'][id_norm]
-                else:
-                    email = ""
-                    cc = ""
-            else:
-                email = ""
-                cc = ""
-                
-                # 1. Por ID exacto en contactos (semana o finde según corresponda)
-                if id_norm in dict_contactos_activos:
-                    email, cc = dict_contactos_activos[id_norm]
-                    if not (isinstance(email, float) and pd.isna(email)):
-                        pass
-                    else:
-                        email = ""
-
-                # 2. Por Custodio exacto en contactos
-                if not email and custodio in dict_contactos_activos:
-                    email, cc = dict_contactos_activos[custodio]
-                    if not (isinstance(email, float) and pd.isna(email)):
-                        pass
-                    else:
-                        email = ""
-
-                # 3. Búsqueda por custodio en contactos (match exacto primero, luego keyword)
-                if not email:
-                    cust_upper = cust_norm.upper().replace(" ", "")
-                    for key, val in dict_contactos_activos.items():
-                        key_upper = key.upper().replace(" ", "")
-                        if cust_upper == key_upper:
-                            email, cc = val
-                            break
-                    if not email:
-                        for key, val in dict_contactos_activos.items():
-                            key_upper = key.upper().replace(" ", "")
-                            if key_upper.startswith("BHD"):
-                                continue
-                            if "BRINKS" in cust_upper and "BRINKS" in key_upper:
-                                email, cc = val
-                                break
-                            elif "STE" in cust_upper and "STE" in key_upper:
-                                email, cc = val
-                                break
-                            elif es_sucursal(cust_norm) and es_sucursal(key):
-                                email, cc = val
-                                break
-
-                # 4. Si aún no tiene email y es SUCURSAL, buscar en contactos_suc
-                if not email and es_sucursal(cust_norm) and id_norm in excel.data['contactos_suc']:
-                    email, cc = excel.data['contactos_suc'][id_norm]
+            email, cc = obtener_contacto_atm(id_norm, custodio, es_fin_de_semana, excel.data)
 
             if not email or (isinstance(email, float) and pd.isna(email)):
                 results['sin_contacto'] += 1
@@ -472,21 +504,18 @@ def upload_rcu():
     if file.filename == '':
         return jsonify({'status': 'error', 'message': 'No selected file'}), 400
 
-    temp_path = os.path.join(os.path.dirname(DEFAULT_PATH), "temp_rcu.xlsx")
-    file.save(temp_path)
-
-    success, message = excel.procesar_rcu(temp_path)
-
-    if os.path.exists(temp_path):
-        os.remove(temp_path)
-
+    # Leer directo del stream sin guardar a disco
+    import io
+    data = file.read()
+    df_nuevo = pd.read_excel(io.BytesIO(data), header=2)
+    
+    success, message = excel.procesar_rcu_desde_df(df_nuevo)
+    
     if success:
         excel.cargar_datos()
-        # message es un dict con actualizados, nuevos, etc.
         if isinstance(message, dict):
             return jsonify({'status': 'success', 'results': message})
         return jsonify({'status': 'success', 'message': str(message)})
-    # message es un string de error
     return jsonify({'status': 'error', 'message': str(message)}), 400
 
 
@@ -607,150 +636,6 @@ def xolusat_clear():
     return jsonify({'status': 'success', 'message': 'Registros limpiados'})
 
 
-# ==========================================
-# CLOSED AND BLOCK
-# ==========================================
-
-@app.route('/api/closed-block/list', methods=['GET'])
-def closed_block_list():
-    return jsonify({'status': 'success', 'records': closed_block.listar_todos()})
-
-
-@app.route('/api/closed-block/agregar', methods=['POST'])
-def closed_block_agregar():
-    data = request.json
-    text = data.get('text', '')
-    asunto = data.get('asunto', '')
-    reportado_por = data.get('reportado_por', '')
-
-    if not text:
-        return jsonify({'status': 'error', 'message': 'No se proporcionaron IDs'}), 400
-
-    # Parsear IDs del texto pegado
-    lines = [line.strip() for line in text.split('\n') if line.strip()]
-    ids = []
-    for line in lines:
-        # Tomar solo la primera columna (tab-separated o coma-separated)
-        parts = line.replace('\t', ',').split(',')
-        id_val = parts[0].strip()
-        if id_val and id_val.upper() not in ['ID', 'NAN', '']:
-            ids.append(id_val)
-
-    if not ids:
-        return jsonify({'status': 'error', 'message': 'No se encontraron IDs válidos'}), 400
-
-    result = closed_block.agregar_ids(ids, excel.data['unificado'], asunto, reportado_por)
-    if 'error' in result:
-        return jsonify({'status': 'error', 'message': result['error']}), 500
-
-    return jsonify({
-        'status': 'success',
-        'added': result['added'],
-        'skipped': result['skipped'],
-        'total': result['total'],
-        'message': f'{result["added"]} agregados, {result["skipped"]} ya existían. Total: {result["total"]}'
-    })
-
-
-@app.route('/api/closed-block/buscar', methods=['POST'])
-def closed_block_buscar():
-    data = request.json
-    
-    # Acepta texto pegado (con formato) o array de IDs
-    text = data.get('text', '')
-    ids_raw = data.get('ids', [])
-    
-    if text:
-        # Parsear IDs del texto pegado (igual que agregar)
-        lines = [line.strip() for line in text.split('\n') if line.strip()]
-        ids_parsed = []
-        for line in lines:
-            parts = line.replace('\t', ',').split(',')
-            id_val = parts[0].strip()
-            if id_val and id_val.upper() not in ['ID', 'NAN', '']:
-                ids_parsed.append(id_val)
-        results = closed_block.buscar_ids(ids_parsed)
-    elif ids_raw:
-        results = closed_block.buscar_ids(ids_raw)
-    else:
-        results = []
-    
-    return jsonify({'status': 'success', 'found': results})
-
-
-@app.route('/api/closed-block/eliminar', methods=['POST'])
-def closed_block_eliminar():
-    data = request.json
-    atm_id = data.get('id', '')
-    if not atm_id:
-        return jsonify({'status': 'error', 'message': 'ID requerido'}), 400
-    success = closed_block.eliminar_id(atm_id)
-    if success:
-        return jsonify({'status': 'success', 'message': 'Eliminado'})
-    return jsonify({'status': 'error', 'message': 'No se encontró'}), 400
-
-
-@app.route('/api/closed-block/limpiar', methods=['POST'])
-def closed_block_limpiar():
-    removed, remaining = closed_block.limpiar_vencidos()
-    return jsonify({
-        'status': 'success',
-        'message': f'{removed} registros vencidos eliminados. Restan: {remaining}'
-    })
-
-
-@app.route('/api/generate-scripts-cb', methods=['POST'])
-def generate_scripts_cb():
-    data = request.json
-    text = data.get('text', '')
-    
-    if not text:
-        return jsonify({'status': 'error', 'message': 'Sin datos'}), 400
-    
-    lines = [line.strip() for line in text.split('\n') if line.strip()]
-    
-    ids_data = {}
-    for line in lines:
-        parts = [p.strip() for p in line.replace('\t', ',').split(',')]
-        
-        id_val = parts[0].strip().upper() if parts[0] else ''
-        if not id_val or id_val.upper() in ['ID', 'NAN', '']:
-            continue
-            
-        id_norm = closed_block.normalizar(id_val)
-        
-        tk_val = parts[10].strip() if len(parts) > 10 else ''
-        if not tk_val and len(parts) > 9:
-            tk_val = parts[9].strip()
-        
-        if tk_val and not tk_val.isdigit():
-            tk_val = ''
-        
-        if id_norm not in ids_data:
-            ids_data[id_norm] = []
-        if tk_val:
-            ids_data[id_norm].append(tk_val)
-    
-    if not ids_data:
-        return jsonify({'status': 'error', 'message': 'No se encontraron IDs'}), 400
-    
-    ids_raw = list(ids_data.keys())
-    found = closed_block.buscar_ids(ids_raw)
-    
-    scripts = []
-    for r in found:
-        id_norm = r['id']
-        tks = [t for t in ids_data.get(id_norm, []) if t and t != 'N/A']
-        asunto = r.get('asunto', 'N/A')
-        reportado_por = r.get('reportado_por', 'SUCURSAL')
-        
-        for tk in tks:
-            script_line = f"#07# ATM bloqueado por cliente // {asunto} // {reportado_por}"
-            scripts.append({"ticket": tk, "comentario": script_line})
-    
-    return jsonify({'status': 'success', 'scripts': scripts})
-
-
 @app.route('/api/shutdown', methods=['POST'])
 def shutdown_server():
     import os
@@ -765,20 +650,53 @@ def shutdown_server():
     return jsonify({'status': 'success'})
 
 
+
+# ==========================================
+# TAB CONTACTOS
+# ==========================================
+
+@app.route('/api/contactos/list', methods=['GET'])
+def contactos_list():
+    result = excel.obtener_contactos_custodio()
+    if 'error' in result:
+        return jsonify({'status': 'error', 'message': result['error']}), 500
+    return jsonify({'status': 'success', 'data': result})
+
+@app.route('/api/contactos/guardar', methods=['POST'])
+def contactos_guardar():
+    data = request.json
+    custodio = data.get('custodio', '').strip()
+    email = data.get('email', '').strip()
+    cc = data.get('cc', '').strip()
+    aplica_finde = data.get('aplica_finde', False)
+    email_finde = data.get('email_finde', '').strip()
+    cc_finde = data.get('cc_finde', '').strip()
+    solo = data.get('solo', '').strip()
+    tipo = data.get('tipo', 'tercero').strip()
+
+    if not custodio:
+        return jsonify({'status': 'error', 'message': 'Falta custodio'}), 400
+
+    result = excel.actualizar_contactos_custodio(custodio, email, cc, aplica_finde, tipo, email_finde, cc_finde, solo)
+    if 'error' in result:
+        return jsonify({'status': 'error', 'message': result['error']}), 500
+
+    excel.cargar_datos()
+    return jsonify(result)
+
+
 # ==========================================
 # MAIN
 # ==========================================
 
-running = True
-
-def signal_handler(sig, frame):
-    global running
-    running = False
-    print("\nServidor detenido.")
+@app.route('/api/shutdown', methods=['POST'])
+def shutdown():
+    import os, signal
+    os.kill(os.getpid(), signal.SIGTERM)
+    return jsonify({'status': 'success'})
 
 if __name__ == '__main__':
-    import signal
-    signal.signal(signal.SIGINT, signal_handler)
+    import webbrowser
     
     print("=" * 50)
     print("  ESCALAMIENTOS APP - Servidor iniciado")
@@ -786,8 +704,6 @@ if __name__ == '__main__':
     print("=" * 50)
     excel.cargar_datos()
     
-    import os
-    with open('server.pid', 'w') as f:
-        f.write(str(os.getpid()))
+    webbrowser.open('http://localhost:5000')
     
-    app.run(debug=False, port=5000)
+    app.run(debug=False, host='127.0.0.1', port=5000)
