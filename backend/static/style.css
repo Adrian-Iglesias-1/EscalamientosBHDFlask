@@ -699,6 +699,13 @@ section#tab-xolusat .data-card-header {
     border-radius: 10px;
 }
 
+/* ─── Zoom notebook (pantallas ≤1440px) ─────────────────────────────── */
+@media screen and (max-width: 1440px) {
+    html {
+        zoom: 0.75;
+    }
+}
+
 /* ─── Responsive ────────────────────────────────────────────────────── */
 @media (max-width: 991px) {
     .sidebar { display: none !important; }
