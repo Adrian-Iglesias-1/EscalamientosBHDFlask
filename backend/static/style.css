@@ -43,6 +43,34 @@ body {
     overflow: hidden;
 }
 
+/* ─── Layout principal (altura manejada por CSS) ────────────────────── */
+#main-layout {
+    height: 100vh;
+}
+
+/* ─── Scale wrapper para notebooks ──────────────────────────────────── */
+/* En pantallas ≤1440px CSS: escala TODO el contenido a 75% usando transform.
+   transform: scale() es puramente visual — NO se multiplica con el zoom del browser.
+   El wrapper mide 133.33% del viewport, escalado a 75% = llena exactamente la pantalla. */
+@media screen and (max-width: 1440px) {
+    #app-scale-wrapper {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 133.33vw;
+        height: 133.33vh;
+        transform: scale(0.75);
+        transform-origin: top left;
+        overflow: hidden;
+        background: var(--surface);
+    }
+    /* main-layout llena el wrapper (133.33vh), escalado = 100vh visual */
+    #main-layout {
+        height: 133.33vh !important;
+    }
+}
+/* En pantallas grandes (escritorio), el wrapper es un div transparente sin efecto */
+
 /* ─── Navbar ─────────────────────────────────────────────────────────── */
 .bg-navbar {
     background: linear-gradient(135deg, var(--brand-dark) 0%, #2d3f55 100%);
@@ -699,14 +727,6 @@ section#tab-xolusat .data-card-header {
     border-radius: 10px;
 }
 
-/* ─── XOLUSAT y otros tabs: scroll correcto ─────────────────────────── */
-#tab-xolusat,
-#tab-scripts,
-#tab-contactos {
-    overflow-y: auto;
-    max-height: calc(100vh - 130px);
-    padding-bottom: 20px;
-}
 
 
 /* ─── Responsive ────────────────────────────────────────────────────── */
