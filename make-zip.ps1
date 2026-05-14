@@ -1,4 +1,4 @@
-$dest = "C:\Users\the_f\OneDrive\Escritorio\EscalamientosApp-1.1\EscalamientosApp-v2.1.zip"
+$dest = "C:\Users\the_f\OneDrive\Escritorio\EscalamientosApp-1.1\EscalamientosApp-v2.2.zip"
 $src  = "C:\Users\the_f\OneDrive\Escritorio\EscalamientosApp-1.1"
 $tmp  = "$env:TEMP\EscalamientosApp_build"
 
