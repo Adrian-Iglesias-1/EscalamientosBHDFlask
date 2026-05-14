@@ -638,17 +638,17 @@ def xolusat_clear():
 
 @app.route('/api/shutdown', methods=['POST'])
 def shutdown_server():
-    import os
+    import os, signal
     print("\n" + "=" * 40)
     print("  USUARIO CERRO LA APLICACION")
     print("  Servidor detenido.")
     print("=" * 40)
-    
+
     if os.path.exists('server.pid'):
         os.remove('server.pid')
-    
-    return jsonify({'status': 'success'})
 
+    os.kill(os.getpid(), signal.SIGTERM)
+    return jsonify({'status': 'success'})
 
 
 # ==========================================
@@ -685,25 +685,16 @@ def contactos_guardar():
     return jsonify(result)
 
 
+
 # ==========================================
 # MAIN
 # ==========================================
 
-@app.route('/api/shutdown', methods=['POST'])
-def shutdown():
-    import os, signal
-    os.kill(os.getpid(), signal.SIGTERM)
-    return jsonify({'status': 'success'})
-
 if __name__ == '__main__':
-    import webbrowser
-    
     print("=" * 50)
     print("  ESCALAMIENTOS APP - Servidor iniciado")
     print("  http://localhost:5000")
     print("=" * 50)
     excel.cargar_datos()
-    
-    webbrowser.open('http://localhost:5000')
-    
+
     app.run(debug=False, host='127.0.0.1', port=5000)

@@ -1153,13 +1153,28 @@ loadData();
 loadContactos();
 setInterval(updateStatus, 30000);
 
+// ─── Fix DPI/Escala: ajusta padding-top del layout según la altura real del navbar ─────
+function fixNavbarPadding() {
+    var navbar = document.querySelector('.navbar.fixed-top');
+    var layout = document.getElementById('main-layout');
+    if (navbar && layout) {
+        var h = navbar.getBoundingClientRect().height;
+        layout.style.paddingTop = Math.ceil(h) + 'px';
+    }
+}
+
 // Setup drag & drop zone
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function() {
         setupDropZone();
         syncSendPanelVisibility();
+        fixNavbarPadding();
     });
 } else {
     setupDropZone();
+    fixNavbarPadding();
 }
+
+// Re-ajusta si cambia el tamaño de ventana (conexión a monitor externo, etc.)
+window.addEventListener('resize', fixNavbarPadding);
 

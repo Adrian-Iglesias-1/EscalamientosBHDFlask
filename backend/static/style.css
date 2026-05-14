@@ -352,7 +352,7 @@ section#tab-xolusat .btn-primary:hover   { background-color: var(--brand-blue) !
 #send-panel-wrapper {
     position: fixed !important;
     bottom: 0;
-    left: 270px;
+    left: 0;
     right: 0;
     z-index: 100;
     padding: 14px 20px 12px;
@@ -694,6 +694,7 @@ section#tab-xolusat .data-card-header {
 /* ─── Responsive ────────────────────────────────────────────────────── */
 @media (max-width: 991px) {
     .sidebar { display: none !important; }
+    .d-flex.min-h-0 > main { width: 100% !important; }
 }
 
 /* ─── Responsive Avanzado ─────────────────────────────────────────────── */

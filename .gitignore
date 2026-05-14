@@ -42,13 +42,8 @@ server.pid
 # Debug output
 debug_output.html
 
-# Local environment variables
-.env
-.env.local
-
-# Flask
-instance/
-.webassets-cache
+# Local development copy (redundant with root)
+EscalamientosApp-1.2/
 
 # Distribution / packaging
 .Python
