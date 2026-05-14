@@ -708,21 +708,6 @@ section#tab-xolusat .data-card-header {
     padding-bottom: 20px;
 }
 
-/* ─── Zoom notebook (1920x1200 @150% = 1280px CSS) ──────────────────── */
-@media screen and (max-width: 1440px) {
-    html {
-        zoom: 0.75;
-    }
-    /* 100vh no escala con zoom, hay que compensar dividiendo por el factor */
-    #main-layout {
-        height: calc(100vh / 0.75) !important;
-    }
-    #tab-xolusat,
-    #tab-scripts,
-    #tab-contactos {
-        max-height: calc((100vh - 130px) / 0.75);
-    }
-}
 
 /* ─── Responsive ────────────────────────────────────────────────────── */
 @media (max-width: 991px) {
