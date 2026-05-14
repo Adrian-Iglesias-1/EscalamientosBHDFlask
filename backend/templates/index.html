@@ -10,11 +10,9 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/style.css?v=3.0">
+    <link rel="stylesheet" href="/static/style.css?v=4.0">
 </head>
 <body>
-
-<div id="app-scale-wrapper">
 
 <!-- Navbar -->
 <nav class="navbar navbar-expand-lg navbar-dark bg-navbar fixed-top shadow-sm">
@@ -37,7 +35,7 @@
 <div class="d-flex min-h-0" id="main-layout" style="padding-top: 56px;">
 
     <!-- Sidebar -->
-    <aside class="sidebar bg-white border-end p-3" style="width:270px">
+    <aside class="sidebar bg-white border-end p-3">
         <div class="card border-0 bg-light">
             <div class="card-body py-3">
                 <label class="form-label fw-semibold text-uppercase small text-muted mb-2">
@@ -613,9 +611,7 @@
     </div>
 </div>
 
-</div><!-- /app-scale-wrapper -->
-
-<!-- Toast Container (fuera del wrapper para que Bootstrap lo posicione bien) -->
+<!-- Toast Container -->
 <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index:9999;">
     <div id="appToast" class="toast align-items-center border-0 shadow" role="alert">
         <div class="d-flex">
@@ -646,13 +642,10 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="/static/script.js?v=3.0"></script>
+    <script src="/static/script.js?v=4.0"></script>
 <script>
 (function () {
-    // Solo en notebooks (pantalla CSS ≤ 1440px)
-    if (window.screen.width > 1440) return;
-
-    // Bloquear Ctrl++, Ctrl+-, Ctrl+0
+    // Bloquear Ctrl++, Ctrl+-, Ctrl+0 (evitar zoom accidental)
     document.addEventListener('keydown', function (e) {
         if (e.ctrlKey && (e.key === '+' || e.key === '-' || e.key === '=' || e.key === '0')) {
             e.preventDefault();
