@@ -699,11 +699,13 @@ section#tab-xolusat .data-card-header {
     border-radius: 10px;
 }
 
-/* ─── Zoom notebook (pantallas ≤1440px) ─────────────────────────────── */
-@media screen and (max-width: 1440px) {
-    html {
-        zoom: 0.75;
-    }
+/* ─── XOLUSAT y otros tabs: scroll correcto ─────────────────────────── */
+#tab-xolusat,
+#tab-scripts,
+#tab-contactos {
+    overflow-y: auto;
+    max-height: calc(100vh - 130px);
+    padding-bottom: 20px;
 }
 
 /* ─── Responsive ────────────────────────────────────────────────────── */
