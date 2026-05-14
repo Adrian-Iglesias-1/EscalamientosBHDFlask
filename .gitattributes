@@ -1,2 +1,11 @@
 *.exe binary
 *.zip binary
+
+# Excluir del zip de descarga de GitHub
+*.zip export-ignore
+make-zip.ps1 export-ignore
+check-zip.ps1 export-ignore
+.gitattributes export-ignore
+.gitignore export-ignore
+fotos/ export-ignore
+.claude/ export-ignore
