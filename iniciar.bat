@@ -28,7 +28,7 @@ if not exist "%USERPROFILE%\Desktop\EscalamientosApp.lnk" (
         echo Set oShortcut = WshShell.CreateShortcut^(strDesktop ^& "\EscalamientosApp.lnk"^)
         echo oShortcut.TargetPath = "%~f0"
         echo oShortcut.WorkingDirectory = "%~dp0"
-        echo oShortcut.IconLocation = "%SystemRoot%\System32\shell32.dll,15"
+        echo oShortcut.IconLocation = "%~dp0app.ico"
         echo oShortcut.Save
     )
     cscript //nologo "%TEMP%\CreateShortcut.vbs" >nul 2>&1
