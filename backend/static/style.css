@@ -79,6 +79,7 @@ body {
 
 /* ─── Sidebar ────────────────────────────────────────────────────────── */
 .sidebar { width: 270px; min-width: 220px; background: var(--surface-card); }
+.sidebar .btn { white-space: nowrap; font-size: 0.78rem; }
 .sidebar > * { margin-top: 0 !important; margin-bottom: 0 !important; }
 .sidebar .card { margin-bottom: 8px !important; border-radius: var(--radius-card) !important; }
 
