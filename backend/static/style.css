@@ -732,9 +732,9 @@ section#tab-xolusat .data-card-header {
 
 /* Notebooks (≤1440px): Layout compacto — simula ~75% del tamaño desktop */
 @media (max-width: 1440px) {
-    /* ── Base: font-size del html al 75% = todo hereda proporcional ── */
+    /* ── Base: font-size del html al 85% = todo hereda proporcional ── */
     html {
-        font-size: 12px;
+        font-size: 13.6px;
     }
 
     /* ── Sidebar ── */
