@@ -730,172 +730,287 @@ section#tab-xolusat .data-card-header {
     }
 }
 
-/* Notebooks (1280px - 1440px): Layout compacto para DPI 150% */
-@media (max-width: 1440px) and (min-width: 1200px) {
+/* Notebooks (≤1440px): Layout compacto — simula ~75% del tamaño desktop */
+@media (max-width: 1440px) {
+    /* ── Base: font-size del html al 75% = todo hereda proporcional ── */
+    html {
+        font-size: 12px;
+    }
+
+    /* ── Sidebar ── */
     .sidebar {
-        width: 220px;
-        min-width: 200px;
+        width: 180px;
+        min-width: 160px;
+        padding: 0.5rem !important;
+    }
+    .sidebar .card {
+        margin-bottom: 4px !important;
     }
     .sidebar .card-body {
-        padding: 0.6rem 0.75rem !important;
+        padding: 0.4rem 0.5rem !important;
     }
     .sidebar .form-label {
-        font-size: 0.7rem;
+        font-size: 0.65rem;
+        margin-bottom: 0.2rem !important;
     }
     .sidebar .btn-sm {
-        font-size: 0.75rem;
-        padding: 0.3rem 0.5rem;
+        font-size: 0.7rem;
+        padding: 0.2rem 0.4rem;
     }
     .sidebar .form-check-label {
-        font-size: 0.8rem;
+        font-size: 0.7rem;
+    }
+    .sidebar .btn-outline-danger {
+        font-size: 0.7rem;
+        padding: 0.2rem 0.4rem !important;
+        margin-top: 0.5rem !important;
+    }
+
+    /* ── Navbar ── */
+    .navbar {
+        padding-top: 0.25rem !important;
+        padding-bottom: 0.25rem !important;
+    }
+    .navbar .container-fluid {
+        padding-left: 0.75rem !important;
+        padding-right: 0.75rem !important;
+    }
+    .navbar-brand i {
+        font-size: 1rem !important;
     }
     .navbar-brand span {
-        font-size: 0.95rem;
+        font-size: 0.8rem;
     }
     #connection-status {
-        font-size: 0.7rem !important;
-        padding: 3px 10px !important;
+        font-size: 0.6rem !important;
+        padding: 2px 8px !important;
     }
     #atm-count {
-        font-size: 0.7rem;
-        padding: 3px 8px;
+        font-size: 0.6rem;
+        padding: 2px 6px;
     }
-    .nav-pills .nav-link {
-        font-size: 0.78rem;
-        padding: 0.35rem 0.9rem !important;
-    }
-    main .container-fluid {
-        padding-left: 14px;
-        padding-right: 14px;
+
+    /* ── Main layout ── */
+    #main-layout {
+        padding-top: 42px !important;
     }
     main.flex-grow-1 {
-        padding: 0.6rem !important;
+        padding: 0.4rem !important;
+    }
+    main .container-fluid {
+        padding-left: 8px;
+        padding-right: 8px;
+    }
+
+    /* ── Tabs navigation ── */
+    .nav-pills .nav-link {
+        font-size: 0.65rem;
+        padding: 0.25rem 0.7rem !important;
+    }
+    #mainTabs {
+        margin-bottom: 0.5rem !important;
+        gap: 0.3rem !important;
+    }
+
+    /* ── Cards generales ── */
+    .card {
+        border-radius: 10px !important;
     }
     .data-card-header {
-        gap: 8px;
-        margin-bottom: 8px;
-        padding-bottom: 8px;
+        gap: 6px;
+        margin-bottom: 6px;
+        padding-bottom: 6px;
     }
     .data-card-icon {
-        width: 30px;
-        height: 30px;
-        font-size: 0.9rem;
+        width: 24px;
+        height: 24px;
+        font-size: 0.75rem;
+        border-radius: 6px;
     }
     .data-card-header h5 {
-        font-size: 0.88rem !important;
+        font-size: 0.75rem !important;
     }
     .data-card-header p {
-        font-size: 0.68rem !important;
+        font-size: 0.58rem !important;
     }
+
+    /* ── Tab Fallas ── */
     #tab-fallas .card-body {
-        padding: 0.8rem !important;
+        padding: 0.5rem !important;
+    }
+    #tab-fallas .row.g-4 {
+        --bs-gutter-x: 0.5rem;
+        --bs-gutter-y: 0.5rem;
     }
     #tab-fallas .row > .col-md-6:first-child {
-        padding-right: 14px;
+        padding-right: 8px;
     }
     #tab-fallas .row > .col-md-6:last-child {
-        padding-left: 14px;
+        padding-left: 8px;
     }
     #pasted-text {
-        font-size: 0.72rem;
-    }
-    #preview-table thead th {
-        font-size: 0.68rem;
-        padding: 7px 10px !important;
-    }
-    #preview-table tbody td {
-        font-size: 0.78rem;
-        padding: 6px 10px !important;
-    }
-    .badge-custodio {
         font-size: 0.62rem;
-        padding: 2px 7px;
-    }
-    .preview-empty {
-        padding: 24px 14px;
-    }
-    .preview-empty .empty-icon {
-        width: 48px;
-        height: 48px;
-        font-size: 1.4rem;
-    }
-    .preview-empty p {
-        font-size: 0.78rem;
-    }
-    .preview-empty .step-hint {
-        font-size: 0.68rem;
-    }
-    #send-panel-wrapper {
-        padding: 10px 14px 8px;
-    }
-    #send-panel {
-        border-radius: 10px;
-        max-width: 900px;
-    }
-    #send-panel .py-2 {
-        padding-top: 0.35rem !important;
-        padding-bottom: 0.35rem !important;
-    }
-    #send-panel .send-title {
-        font-size: 0.85rem;
-    }
-    #send-panel #email-info {
-        font-size: 0.7rem;
-    }
-    #send-panel .send-summary {
-        font-size: 0.7rem;
-    }
-    #send-panel .send-summary .stat-badge {
-        font-size: 0.65rem;
-    }
-    #send-panel .btn {
-        font-size: 0.78rem;
-        padding: 6px 14px !important;
-    }
-    .btn {
-        font-size: 0.8rem;
-    }
-    .line-counter {
-        font-size: 0.75rem;
-        padding: 3px 9px;
-    }
-    .form-control, .form-select {
-        font-size: 0.8rem;
+        line-height: 1.4;
+        border-radius: 6px !important;
     }
     #tab-fallas .d-flex.gap-2.mt-auto .btn {
-        font-size: 0.78rem;
-        padding: 0.35rem 0.7rem !important;
+        font-size: 0.65rem;
+        padding: 0.25rem 0.5rem !important;
     }
-    /* XOLUSAT compact */
-    #xol-table thead th {
-        font-size: 0.68rem;
-        padding: 7px 10px !important;
+    .line-counter {
+        font-size: 0.6rem;
+        padding: 2px 6px;
+        border-radius: 10px;
     }
-    #xol-table tbody td {
-        font-size: 0.78rem;
-        padding: 6px 10px !important;
+
+    /* ── Preview table ── */
+    #preview-table thead th {
+        font-size: 0.58rem;
+        padding: 5px 6px !important;
+        letter-spacing: 0.3px;
     }
-    .xol-table-wrap {
-        max-height: 280px;
+    #preview-table tbody td {
+        font-size: 0.65rem;
+        padding: 4px 6px !important;
     }
-    /* Scripts compact */
-    .script-item {
-        padding: 12px 14px;
+    #preview-table tbody td:first-child {
+        font-size: 0.62rem;
     }
-    .script-item code {
-        font-size: 11px;
-        padding: 8px 10px;
+    .badge-custodio {
+        font-size: 0.52rem;
+        padding: 1px 5px;
     }
-    /* Contactos compact */
-    section#tab-contactos .card-body {
-        padding: 0.6rem !important;
+    .preview-empty {
+        padding: 16px 10px;
     }
-    section#tab-contactos .data-card-header {
-        padding: 0 0.6rem;
+    .preview-empty .empty-icon {
+        width: 36px;
+        height: 36px;
+        font-size: 1.1rem;
+        margin-bottom: 8px;
+    }
+    .preview-empty p {
+        font-size: 0.65rem;
+    }
+    .preview-empty .step-hint {
+        font-size: 0.55rem;
+        padding: 4px 10px;
+    }
+
+    /* ── Send panel ── */
+    #send-panel-wrapper {
+        padding: 6px 10px 5px;
+    }
+    #send-panel {
+        border-radius: 8px;
+        max-width: 800px;
+    }
+    #send-panel .py-2.px-3 {
+        padding: 0.25rem 0.6rem !important;
+    }
+    #send-panel .send-title {
+        font-size: 0.7rem;
+    }
+    #send-panel .send-title i {
+        margin-right: 0.3rem !important;
+    }
+    #send-panel #email-info {
+        font-size: 0.58rem;
+    }
+    #send-panel .send-summary {
+        font-size: 0.58rem;
+        margin-top: 2px;
+    }
+    #send-panel .send-summary .stat-badge {
+        font-size: 0.52rem;
+        padding: 0px 5px;
+    }
+    #send-panel .btn {
+        font-size: 0.65rem;
+        padding: 4px 10px !important;
+    }
+    #send-panel .d-flex.gap-2 {
+        gap: 0.3rem !important;
     }
     main.flex-grow-1.main--send-panel-space {
-        padding-bottom: calc(1rem + 140px) !important;
+        padding-bottom: calc(0.5rem + 110px) !important;
     }
+
+    /* ── Buttons generales ── */
+    .btn {
+        font-size: 0.65rem;
+        border-radius: 6px !important;
+    }
+    .form-control, .form-select {
+        font-size: 0.7rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: 6px !important;
+    }
+
+    /* ── XOLUSAT ── */
+    section#tab-xolusat .card-body {
+        padding: 0.6rem !important;
+    }
+    section#tab-xolusat .row.g-3 {
+        --bs-gutter-x: 0.4rem;
+        --bs-gutter-y: 0.4rem;
+    }
+    #xol-table thead th {
+        font-size: 0.55rem;
+        padding: 4px 5px !important;
+    }
+    #xol-table tbody td {
+        font-size: 0.62rem;
+        padding: 3px 5px !important;
+    }
+    .xol-table-wrap {
+        max-height: 220px;
+    }
+    .nav-tabs .nav-link {
+        font-size: 0.68rem;
+    }
+
+    /* ── Scripts ── */
+    .script-item {
+        padding: 8px 10px;
+        border-radius: 8px;
+        margin-bottom: 4px;
+    }
+    .script-item code {
+        font-size: 10px;
+        padding: 6px 8px;
+        border-radius: 5px;
+    }
+    .script-header {
+        margin-bottom: 6px;
+    }
+
+    /* ── Contactos ── */
+    section#tab-contactos .card {
+        margin-bottom: 0.6rem !important;
+    }
+    section#tab-contactos .card-body {
+        padding: 0.4rem !important;
+    }
+    section#tab-contactos .data-card-header {
+        padding: 0 0.4rem;
+    }
+    section#tab-contactos th,
+    section#tab-contactos td {
+        font-size: 0.6rem !important;
+        padding: 3px 5px !important;
+    }
+    .search-input {
+        font-size: 0.7rem;
+        padding: 6px 30px 6px 32px;
+    }
+    .search-icon {
+        font-size: 0.75rem;
+        left: 10px;
+    }
+
+    /* ── Scrollbar más fina ── */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
 }
 
 /* Pantallas medianas-grandes (1100px - 1199px) */
