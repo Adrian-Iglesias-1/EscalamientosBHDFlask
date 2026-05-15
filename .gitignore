@@ -39,6 +39,10 @@ Thumbs.db
 # Server PID files
 server.pid
 
+# Datos locales de cada instalación (no se comparten por git)
+xolusat_records.json
+PlanillaEscalamientos.xlsx
+
 # Debug output
 debug_output.html
 

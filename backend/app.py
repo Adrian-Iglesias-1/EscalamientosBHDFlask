@@ -4,6 +4,7 @@ from datetime import datetime
 import os
 import sys
 import io
+import json
 import pandas as pd
 from excel_handler import ExcelHandler
 from outlook_handler import crear_correo_outlook, WINDOWS_OUTLOOK_AVAILABLE
@@ -51,8 +52,28 @@ else:
     DEFAULT_PATH = os.path.join(APP_DIR, "PlanillaEscalamientos.xlsx")
 excel = ExcelHandler(DEFAULT_PATH)
 
-# Almacenamiento en memoria para XOLUSAT (igual que st.session_state.xolusat)
-xolusat_records = []
+# ── Persistencia XOLUSAT ──────────────────────────────────────────────────────
+XOLUSAT_FILE = os.path.join(APP_DIR, 'xolusat_records.json')
+
+def _cargar_xolusat():
+    """Carga registros XOLUSAT desde archivo JSON. Devuelve lista vacía si no existe o hay error."""
+    if os.path.exists(XOLUSAT_FILE):
+        try:
+            with open(XOLUSAT_FILE, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception as e:
+            print(f"Warning: no se pudo leer xolusat_records.json: {e}")
+    return []
+
+def _guardar_xolusat():
+    """Persiste xolusat_records en archivo JSON."""
+    try:
+        with open(XOLUSAT_FILE, 'w', encoding='utf-8') as f:
+            json.dump(xolusat_records, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"Warning: no se pudo guardar xolusat_records.json: {e}")
+
+xolusat_records = _cargar_xolusat()
 
 
 def es_sucursal(c):
@@ -568,6 +589,7 @@ def xolusat_register():
         'fecha_reg': datetime.now().strftime("%d/%m/%Y %H:%M")
     }
     xolusat_records.append(registro)
+    _guardar_xolusat()
 
     if send_email:
         to_xol = "operaciones@xolusat.com; imartinez@xolusat.com; fmella@xolusat.com; centrodecontrol@xolusat.com"
@@ -625,6 +647,7 @@ def xolusat_update_status():
     for item in xolusat_records:
         if item['incident'] == incident:
             item['estado'] = nuevo_estado
+            _guardar_xolusat()
             return jsonify({'status': 'success', 'message': f'{incident} actualizado'})
 
     return jsonify({'status': 'error', 'message': 'Incidente no encontrado'}), 404
@@ -633,6 +656,7 @@ def xolusat_update_status():
 @app.route('/api/xolusat/clear', methods=['POST'])
 def xolusat_clear():
     xolusat_records.clear()
+    _guardar_xolusat()
     return jsonify({'status': 'success', 'message': 'Registros limpiados'})
 
 

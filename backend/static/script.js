@@ -391,8 +391,25 @@ function setupDropZone() {
     dropZone.addEventListener('drop', function(e) {
         var dt = e.dataTransfer;
         var files = dt.files;
-        if (files.length > 0) {
-            showToast('Arrastrar archivos no está implementado. Usá Ctrl+V para pegar datos.', 'warning');
+        if (files.length === 0) return;
+
+        var file = files[0];
+        var validTypes = ['text/plain', 'text/csv', 'text/tab-separated-values', 'application/vnd.ms-excel'];
+        var validExt = /\.(txt|tsv|csv)$/i.test(file.name);
+
+        if (validTypes.includes(file.type) || validExt) {
+            var reader = new FileReader();
+            reader.onload = function(ev) {
+                textarea.value = ev.target.result;
+                updateLineCount();
+                showToast('Archivo cargado: ' + file.name, 'success');
+            };
+            reader.onerror = function() {
+                showToast('No se pudo leer el archivo.', 'danger');
+            };
+            reader.readAsText(file, 'UTF-8');
+        } else {
+            showToast('Solo se aceptan archivos de texto (.txt, .tsv, .csv). Para Excel, copiá y pegá con Ctrl+V.', 'warning');
         }
     }, false);
 }
@@ -567,11 +584,16 @@ async function exportScriptsToExcel() {
     if (failuresData.length === 0) return showToast('No hay datos para exportar', 'danger');
     var isFeriado = document.getElementById('mode-feriado').checked;
 
+    // Filtrar header igual que sendEmails y loadScripts
+    var failuresSinHeader = failuresData.filter(function(row) {
+        return row['_is_header'] !== true;
+    });
+
     try {
         var resScripts = await fetch('/api/generate-scripts', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ failures: failuresData, is_feriado: isFeriado })
+            body: JSON.stringify({ failures: failuresSinHeader, is_feriado: isFeriado })
         });
         var dataScripts = await resScripts.json();
         if (dataScripts.status !== 'success') return showToast('Error generando scripts', 'danger');
@@ -779,7 +801,7 @@ function deleteXolRecord(idx) {
 }
 
 function estadoBadge(estado) {
-    var map = { 'OPEN': 'bg-success', 'SUPEND': 'bg-warning text-dark', 'DISPACHED': 'bg-info', 'CLOSED': 'bg-secondary' };
+    var map = { 'OPEN': 'bg-success', 'ASSIGNED': 'bg-primary', 'SUSPENDED': 'bg-warning text-dark', 'DISPATCHED': 'bg-info', 'CLOSED': 'bg-secondary' };
     var cls = map[estado] || 'bg-secondary';
     return '<span class="badge ' + cls + '">' + estado + '</span>';
 }
