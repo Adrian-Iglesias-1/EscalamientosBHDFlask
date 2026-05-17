@@ -130,10 +130,16 @@ def obtener_contacto_atm(id_norm, custodio, es_fin_de_semana, data):
 
     for key, val in dict_contactos.items():
         key_upper = key.upper().replace(" ", "")
-        if key_upper.startswith("BHD"):
-            continue
+
+        # Match exacto: siempre se chequea, incluso para claves con prefijo BHD
+        # (ej: "BHD - STE Metro" normalizado = "BHDSTEMTERO" debe matchear exacto)
         if match_exacto is None and cust_upper == key_upper:
             match_exacto = val
+
+        # Keyword heurístico: se omiten claves BHD para evitar falsos positivos
+        # (ej: "BRINKSESTE" contiene "STE" pero no es contacto de STE)
+        if key_upper.startswith("BHD"):
+            continue
         if match_keyword is None:
             if "BRINKS" in cust_upper and "BRINKS" in key_upper:
                 match_keyword = val
